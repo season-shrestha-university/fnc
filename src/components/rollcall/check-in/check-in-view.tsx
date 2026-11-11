@@ -365,8 +365,10 @@ export default function CheckInView({
               </CardHeader>
               <CardContent className="p-6">
                 <div
-                  className={`relative my-1 flex h-[211px] items-center justify-center overflow-hidden rounded-[11px] bg-gradient-to-br from-[#eeefff] via-[#f7f7ff] to-[#fdf1ef] ${
-                    isScanning && !isCheckInPending ? "animate-pulse" : ""
+                  className={`relative my-1 flex h-[min(52vw,280px)] min-h-[220px] items-center justify-center overflow-hidden rounded-[11px] ${
+                    isScanning && !isCheckInPending
+                      ? "bg-[#0a0a12]"
+                      : "bg-gradient-to-br from-[#eeefff] via-[#f7f7ff] to-[#fdf1ef]"
                   }`}
                 >
                   <div
@@ -397,8 +399,8 @@ export default function CheckInView({
                     }`}
                   />
                   {isScanning && !isCheckInPending && (
-                    <p className="absolute bottom-[17px] m-0 text-sm text-[#7777a3]">
-                      Looking for a code...
+                    <p className="absolute bottom-[17px] z-20 m-0 text-sm text-white/90 drop-shadow-sm">
+                      Center the QR in the frame…
                     </p>
                   )}
                   {isCheckInPending && (

@@ -1,13 +1,31 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode } from "html5-qrcode";
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
 import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
 
 type UseQrScannerOptions = {
   onScan: (memberId: string) => void | Promise<void>;
   onMessage: (message: string, variant?: ToastVariant) => void;
 };
+
+const SCAN_FPS = 15;
+
+const scannerConfig = {
+  verbose: false,
+  useBarCodeDetectorIfSupported: true,
+  formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+};
+
+const cameraConstraints: MediaTrackConstraints = {
+  facingMode: { ideal: "environment" },
+  width: { min: 640, ideal: 1280 },
+  height: { min: 480, ideal: 720 },
+};
+
+function normalizeMemberId(raw: string) {
+  return raw.replace(/\u0000/g, "").trim();
+}
 
 export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   const scanner = useRef<Html5Qrcode | null>(null);
@@ -35,7 +53,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
 
       isProcessingScanRef.current = true;
       try {
-        await onScanRef.current(memberId.trim());
+        await onScanRef.current(normalizeMemberId(memberId));
       } finally {
         isProcessingScanRef.current = false;
       }
@@ -78,20 +96,24 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     }
 
     setIsScanning(true);
-    const nextScanner = new Html5Qrcode("qr-reader");
+    const nextScanner = new Html5Qrcode("qr-reader", scannerConfig);
     scanner.current = nextScanner;
 
     try {
       await nextScanner.start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 200, height: 200 } },
+        cameraConstraints,
+        {
+          fps: SCAN_FPS,
+          // No qrbox: scan the full viewfinder (fixed 200×200 was missing most codes).
+          videoConstraints: cameraConstraints,
+        },
         async (decodedText) => {
           if (isProcessingScanRef.current) return;
           isProcessingScanRef.current = true;
           await stopScanner();
           setIsScanning(false);
           try {
-            await onScanRef.current(decodedText);
+            await onScanRef.current(normalizeMemberId(decodedText));
           } finally {
             isProcessingScanRef.current = false;
           }

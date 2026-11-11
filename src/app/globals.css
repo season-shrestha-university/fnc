@@ -32,6 +32,14 @@
   animation: scan-line 2.4s ease-in-out infinite;
 }
 
+/* html5-qrcode: fill the preview region so decoding uses the full frame */
+#qr-reader video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 11px;
+}
+
 @theme inline {
     --font-heading: var(--font-geist-sans);
     --font-sans: var(--font-geist-sans);
