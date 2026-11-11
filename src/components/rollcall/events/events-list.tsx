@@ -7,7 +7,7 @@ import { CalendarDays, Plus, Search, Users } from "lucide-react";
 import type { EventSummary } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import LocalDate from "./local-date";
+import LocalDate from "@/components/rollcall/shared/local-date";
 
 const eventDateFormat: Intl.DateTimeFormatOptions = {
   weekday: "short",

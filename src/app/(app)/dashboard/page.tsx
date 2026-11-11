@@ -4,8 +4,8 @@ import { getEvents } from "@/app/actions";
 import {
   DashboardHeader,
   DashboardMetrics,
-} from "@/components/check-in/dashboard-view";
-import { DashboardDataSkeleton } from "@/components/check-in/workspace-skeleton";
+} from "@/components/rollcall/dashboard/dashboard-view";
+import { DashboardDataSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 
 async function DashboardContent() {
   const events = await getEvents();

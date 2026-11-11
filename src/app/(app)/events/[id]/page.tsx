@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { getEvents } from "@/app/actions";
-import { EventDetailsSkeleton } from "@/components/check-in/workspace-skeleton";
+import { EventDetailsSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 
 async function EventDetailsContent({
   params,

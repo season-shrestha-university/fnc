@@ -15,9 +15,9 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { Avatar } from "./attendance-view";
-import RollCallLogo from "./rollcall-logo";
-import { useToast } from "./toast-provider";
+import RollCallLogo from "@/components/brand/rollcall-logo";
+import { Avatar } from "@/components/rollcall/check-in/attendance-view";
+import { useToast } from "@/components/rollcall/layout/toast-provider";
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },

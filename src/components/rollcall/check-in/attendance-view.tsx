@@ -6,7 +6,7 @@ import { useSwipeable } from "react-swipeable";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Member } from "./types";
+import type { Member } from "@/components/rollcall/shared/types";
 
 export default function AttendanceView({
   activeEvent,

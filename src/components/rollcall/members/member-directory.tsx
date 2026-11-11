@@ -20,8 +20,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "./toast-provider";
-import { MembersListSkeleton } from "./workspace-skeleton";
+import { useToast } from "@/components/rollcall/layout/toast-provider";
+import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 
 function MembersListContent({
   initialMembers,

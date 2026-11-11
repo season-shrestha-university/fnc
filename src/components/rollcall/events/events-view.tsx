@@ -4,11 +4,11 @@ import { Suspense, use, useState } from "react";
 
 import { saveEvent } from "@/app/actions";
 import type { EventSummary } from "@/app/actions";
-import EventDialogs from "./event-dialogs";
-import { EventsChrome, EventsGrid } from "./events-list";
-import { defaultTrackedFields } from "./member-utils";
-import { useToast } from "./toast-provider";
-import { EventsGridSkeleton } from "./workspace-skeleton";
+import EventDialogs from "@/components/rollcall/events/event-dialogs";
+import { EventsChrome, EventsGrid } from "@/components/rollcall/events/events-list";
+import { useToast } from "@/components/rollcall/layout/toast-provider";
+import { defaultTrackedFields } from "@/components/rollcall/shared/member-utils";
+import { EventsGridSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 
 function ResolvedEventsGrid({
   eventsPromise,

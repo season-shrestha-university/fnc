@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
-import type { ToastVariant } from "./toast-provider";
+import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
 
 type UseQrScannerOptions = {
   onScan: (memberId: string) => void | Promise<void>;

@@ -2,8 +2,8 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 
 import { getDashboardData } from "@/app/actions";
-import CheckInView from "@/components/check-in/check-in-view";
-import { CheckInSkeleton } from "@/components/check-in/workspace-skeleton";
+import CheckInView from "@/components/rollcall/check-in/check-in-view";
+import { CheckInSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 
 async function EventCheckInContent({
   params,

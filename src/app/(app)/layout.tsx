@@ -1,5 +1,5 @@
-import AppShell from "@/components/check-in/app-shell";
-import { ToastProvider } from "@/components/check-in/toast-provider";
+import AppShell from "@/components/rollcall/layout/app-shell";
+import { ToastProvider } from "@/components/rollcall/layout/toast-provider";
 
 // Static shell: sidebar, header and toasts stay mounted across navigations.
 // Each page streams its own data behind the segment's loading.tsx fallback.

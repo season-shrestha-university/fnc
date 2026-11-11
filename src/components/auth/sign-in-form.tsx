@@ -7,7 +7,7 @@ import { ArrowRight, LockKeyhole } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import RollCallLogo from "@/components/check-in/rollcall-logo";
+import RollCallLogo from "@/components/brand/rollcall-logo";
 
 type SignInFormProps = {
   onSuccess?: () => void;

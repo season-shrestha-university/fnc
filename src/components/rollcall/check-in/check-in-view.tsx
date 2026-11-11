@@ -16,18 +16,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import AttendanceView, { Avatar, MemberRow } from "./attendance-view";
-import EventDialogs from "./event-dialogs";
+import AttendanceView, { Avatar, MemberRow } from "@/components/rollcall/check-in/attendance-view";
+import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
+import EventDialogs from "@/components/rollcall/events/event-dialogs";
+import { useToast } from "@/components/rollcall/layout/toast-provider";
 import {
   defaultTrackedFields,
   formatCheckInDate,
   getAvatarColor,
   getInitials,
   toMember,
-} from "./member-utils";
-import { useToast } from "./toast-provider";
-import type { Member } from "./types";
-import { useQrScanner } from "./use-qr-scanner";
+} from "@/components/rollcall/shared/member-utils";
+import type { Member } from "@/components/rollcall/shared/types";
 import { getCurrentDate } from "@/lib/date";
 
 function playBeep(frequency: number) {

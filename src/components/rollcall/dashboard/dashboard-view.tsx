@@ -1,7 +1,7 @@
 import { CalendarDays, Users } from "lucide-react";
 
 import type { EventSummary } from "@/app/actions";
-import LocalDate from "./local-date";
+import LocalDate from "@/components/rollcall/shared/local-date";
 
 const chartDateFormat: Intl.DateTimeFormatOptions = {
   month: "short",
