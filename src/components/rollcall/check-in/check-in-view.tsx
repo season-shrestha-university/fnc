@@ -162,6 +162,7 @@ export default function CheckInView({
         error instanceof Error ? error.message : "Unable to remove check-in",
         "error",
       );
+      throw error;
     }
   }
 

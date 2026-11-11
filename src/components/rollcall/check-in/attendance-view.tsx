@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, Check, Download, Search } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Check, Download, Loader2, Search } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ export default function AttendanceView({
   activeEvent: string;
   members: Member[];
   onBack: () => void;
-  onDelete: (checkInId: string) => void;
+  onDelete: (checkInId: string) => Promise<void>;
   onDownload: () => void;
 }) {
   const [search, setSearch] = useState("");
@@ -92,29 +92,44 @@ export function MemberRow({
   isLast,
 }: {
   member: Member;
-  onDelete: (checkInId: string) => void;
+  onDelete: (checkInId: string) => Promise<void>;
   isLast: boolean;
 }) {
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const deletePendingRef = useRef(false);
   const swipeHandlers = useSwipeable({
     trackMouse: true,
     preventScrollOnSwipe: true,
-    onSwipeStart: () => setIsDragging(true),
+    onSwipeStart: () => {
+      if (!deletePendingRef.current) setIsDragging(true);
+    },
     onSwiping: ({ deltaX, dir }) => {
+      if (deletePendingRef.current) return;
       if (dir === "Left") setOffset(Math.max(-120, Math.min(0, deltaX)));
     },
     onSwipedLeft: ({ absX }) => {
       setIsDragging(false);
-      if (absX >= 80) {
-        onDelete(member.checkInId);
-      } else {
+      if (absX >= 80 && !deletePendingRef.current) {
+        deletePendingRef.current = true;
+        setOffset(-120);
+        setIsDeleting(true);
+        void onDelete(member.checkInId)
+          .catch(() => {
+            deletePendingRef.current = false;
+            setIsDeleting(false);
+            setOffset(0);
+          });
+      } else if (!deletePendingRef.current) {
         setOffset(0);
       }
     },
     onSwiped: () => {
       setIsDragging(false);
-      setOffset(0);
+      if (!deletePendingRef.current) {
+        setOffset(0);
+      }
     },
   });
 
@@ -123,18 +138,28 @@ export function MemberRow({
       className={`relative overflow-hidden bg-[#fbe9e8] ${
         isLast ? "" : "border-b border-[#f0f0f2]"
       }`}
+      aria-busy={isDeleting}
     >
-      <div className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-[#e76b60] text-sm font-semibold text-white">
-        Delete
+      <div
+        className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-[#e76b60] text-sm font-semibold text-white"
+        aria-hidden={!isDeleting}
+      >
+        {isDeleting ? (
+          <Loader2 className="size-6 animate-spin" aria-label="Removing check-in" />
+        ) : (
+          "Delete"
+        )}
       </div>
       <div
-        className="relative flex items-center gap-3 bg-white px-5 py-3.5"
+        className={`relative flex items-center gap-3 bg-white px-5 py-3.5 ${
+          isDeleting ? "pointer-events-none opacity-60" : ""
+        }`}
         style={{
-          touchAction: "pan-y",
+          touchAction: isDeleting ? "none" : "pan-y",
           transform: `translateX(${offset}px)`,
           transition: isDragging ? "none" : "transform 180ms ease-out",
         }}
-        {...swipeHandlers}
+        {...(isDeleting ? {} : swipeHandlers)}
       >
         <Avatar initials={member.initials} color={member.color} />
         <div className="min-w-0 flex-1">
