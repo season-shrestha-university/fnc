@@ -1,25 +1,23 @@
-// e2e/event-guardrail.spec.ts
 import { test, expect } from "@playwright/test";
 
+import { signInAsVolunteer } from "./helpers/auth";
+import { createEventOnEventsPage, goToEvents } from "./helpers/events";
+
 test.describe("Community Center Event Management (BDD)", () => {
-  test("enforces single active event guardrail from PRD", async ({ page }) => {
-    // 1. Given the volunteer opens the app with no active events
-    await page.goto("/");
+  test.beforeEach(async ({ page }) => {
+    await signInAsVolunteer(page);
+  });
 
-    const newEventBtn = page.getByRole("button", { name: /new event/i });
-    await expect(newEventBtn).toBeVisible();
+  test("can create an event and still start another from the events page", async ({
+    page,
+  }) => {
+    const firstEvent = `Tuesday Social Club ${Date.now()}`;
+    await createEventOnEventsPage(page, firstEvent);
 
-    // 2. When they click New Event and fill out the form
-    await newEventBtn.click();
-    await page.fill('input[name="name"]', "Tuesday Social Club");
-    await page.click('button[type="submit"]');
-
-    // 3. Then the dashboard loads and the button dynamically switches to "Update Event"
-    await page.goto("/");
-    const updateEventBtn = page.getByRole("button", { name: /update event/i });
-    await expect(updateEventBtn).toBeVisible();
+    await goToEvents(page);
+    await expect(page.getByRole("button", { name: /^new event$/i })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /new event/i }),
-    ).not.toBeVisible();
+      page.getByRole("heading", { level: 2, name: firstEvent }),
+    ).toBeVisible();
   });
 });

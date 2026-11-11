@@ -1,12 +1,8 @@
-// e2e/qr-scanner-feedback.spec.ts
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-const VOLUNTEER_EMAIL =
-  process.env.TEST_VOLUNTEER_EMAIL || "volunteer@communitycenter.org";
-const VOLUNTEER_PASSWORD =
-  process.env.TEST_VOLUNTEER_PASSWORD || "password123!";
+import { signInAsVolunteer } from "./helpers/auth";
+import { openFirstEventCheckIn } from "./helpers/events";
 
-// Extend window type for test audio tracking
 declare global {
   interface Window {
     __playedSounds: string[];
@@ -15,14 +11,11 @@ declare global {
 
 test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
   test.beforeEach(async ({ page, context }) => {
-    // 1. Grant camera permissions for the QR scanner
     await context.grantPermissions(["camera"]);
 
-    // 2. Spy on browser audio playback before page scripts run
     await page.addInitScript(() => {
       window.__playedSounds = [];
 
-      // Intercept HTML5 <audio> / new Audio().play()
       const originalPlay = window.HTMLMediaElement.prototype.play;
       window.HTMLMediaElement.prototype.play = function () {
         const src = this.currentSrc || this.src || "audio-element";
@@ -30,12 +23,10 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
         return Promise.resolve();
       };
 
-      // Intercept Web Audio API OscillatorNode (if generating beep tones via AudioContext)
       if (window.OscillatorNode) {
         const originalStart = window.OscillatorNode.prototype.start;
         window.OscillatorNode.prototype.start = function (when?: number) {
           const freq = this.frequency?.value || 0;
-          // High frequency (>= 600Hz) = success beep, Low frequency (< 600Hz) = error beep
           const soundType = freq >= 600 ? "beep-success" : "beep-failure";
           window.__playedSounds.push(soundType);
           return originalStart.call(this, when);
@@ -43,56 +34,54 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
       }
     });
 
-    // 3. Log in as volunteer
-    await page.goto("/login");
-    await page.getByLabel(/email/i).fill(VOLUNTEER_EMAIL);
-    await page.getByLabel(/password/i).fill(VOLUNTEER_PASSWORD);
-    await page.getByRole("button", { name: /sign in|log in/i }).click();
-    await expect(page).toHaveURL("/");
+    await signInAsVolunteer(page);
   });
 
-  test("plays success beep and shows top toast with Member Name & ID on valid QR scan", async ({
-    page,
-  }) => {
+  async function createTestMember(page: Page) {
     const memberSuffix = Date.now();
     const memberName = `QR Test Member ${memberSuffix}`;
     const memberId = `QR-${memberSuffix}`;
 
     await page.goto("/members");
     await page.getByRole("button", { name: /add member/i }).click();
-    const memberDialog = page.getByRole("heading", {
-      name: /create a member qr/i,
-    }).locator("..");
-    await memberDialog.getByLabel("Name *").fill(memberName);
-    await memberDialog.getByLabel("Member ID").fill(memberId);
+    const memberDialog = page
+      .getByRole("heading", { name: /create a member qr/i })
+      .locator("..");
+    await memberDialog.getByLabel(/^name \*$/i).fill(memberName);
+    await memberDialog.getByLabel(/^member id$/i).fill(memberId);
+    await memberDialog.getByLabel(/date of birth/i).fill("1990-06-15");
     await memberDialog
       .getByRole("button", { name: /create & generate qr/i })
       .click();
-    await expect(page.getByText(memberName, { exact: true })).toBeVisible();
-    await page.goto("/");
+    await expect(page.getByText(memberName, { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
 
-    // 1. Given the volunteer is on the event's QR scanner screen
+    return { memberName, memberId };
+  }
+
+  test("plays success beep and shows top toast with Member Name & ID on valid QR scan", async ({
+    page,
+  }) => {
+    const { memberName, memberId } = await createTestMember(page);
+    await openFirstEventCheckIn(page);
+
     await expect(page.locator("#qr-reader")).toBeVisible();
 
-    // 2. When a valid member QR code is scanned
     await page.evaluate((id) => {
       window.dispatchEvent(
         new CustomEvent("TEST_QR_SCAN", { detail: id }),
       );
     }, memberId);
 
-    // 3. Then the device must play the success beep sound
     await expect
-      .poll(async () => {
-        return await page.evaluate(() => window.__playedSounds);
-      })
+      .poll(async () => page.evaluate(() => window.__playedSounds))
       .toEqual(
         expect.arrayContaining([
           expect.stringMatching(/success|beep-success/i),
         ]),
       );
 
-    // 4. And a toast notification must appear at the top of the screen
     const toast = page
       .locator(
         '[data-testid="scan-toast"], [role="status"], [data-sonner-toast]',
@@ -100,12 +89,10 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
       .first();
     await expect(toast).toBeVisible();
 
-    // Verify toast is positioned at the top of the viewport (y < 150px)
     const boundingBox = await toast.boundingBox();
     expect(boundingBox).not.toBeNull();
     expect(boundingBox!.y).toBeLessThan(150);
 
-    // 5. And the toast must display both the Member Name and Member ID
     await expect(toast).toContainText(memberName);
     await expect(toast).toContainText(memberId);
   });
@@ -113,28 +100,24 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
   test("plays failure beep sound and shows error state on invalid QR scan", async ({
     page,
   }) => {
-    // 1. Given the volunteer is on the event's QR scanner screen
+    await openFirstEventCheckIn(page);
+
     await expect(page.locator("#qr-reader")).toBeVisible();
 
-    // 2. When an unrecognized/invalid QR code is scanned
     await page.evaluate(() => {
       window.dispatchEvent(
         new CustomEvent("TEST_QR_SCAN", { detail: "INVALID-QR-999" }),
       );
     });
 
-    // 3. Then the device must play the failure beep sound
     await expect
-      .poll(async () => {
-        return await page.evaluate(() => window.__playedSounds);
-      })
+      .poll(async () => page.evaluate(() => window.__playedSounds))
       .toEqual(
         expect.arrayContaining([
           expect.stringMatching(/failure|error|beep-failure/i),
         ]),
       );
 
-    // 4. And an error toast appears at the top of the screen
     const errorToast = page
       .locator(
         '[data-testid="scan-toast"], [role="status"], [data-sonner-toast]',

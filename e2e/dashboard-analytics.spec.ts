@@ -1,27 +1,16 @@
-// e2e/dashboard-analytics.spec.ts
 import { test, expect } from "@playwright/test";
 
-const VOLUNTEER_EMAIL =
-  process.env.TEST_VOLUNTEER_EMAIL || "volunteer@communitycenter.org";
-const VOLUNTEER_PASSWORD =
-  process.env.TEST_VOLUNTEER_PASSWORD || "password123!";
+import { signInAsVolunteer } from "./helpers/auth";
 
 test.describe("Check-in dashboard (BDD)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/login");
-    await page.getByLabel(/email/i).fill(VOLUNTEER_EMAIL);
-    await page.getByLabel(/password/i).fill(VOLUNTEER_PASSWORD);
-    await page.getByRole("button", { name: /sign in|log in/i }).click();
-    await expect(page).toHaveURL("/");
-    await page.goto("/dashboard");
+    await signInAsVolunteer(page);
   });
 
-  test("displays dashboard KPIs and the participants chart", async ({
-    page,
-  }) => {
-    await expect(page).toHaveURL("/dashboard");
+  test("displays dashboard KPIs and the participants chart", async ({ page }) => {
+    await expect(page).toHaveURL("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: /dashboard/i }),
+      page.getByRole("heading", { level: 1, name: /^dashboard$/i }),
     ).toBeVisible();
     await expect(
       page.locator('[data-testid="stat-total-events"]'),
