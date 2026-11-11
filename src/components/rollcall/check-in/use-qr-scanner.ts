@@ -12,6 +12,7 @@ type UseQrScannerOptions = {
 export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   const scanner = useRef<Html5Qrcode | null>(null);
   const onScanRef = useRef(onScan);
+  const isProcessingScanRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
@@ -19,11 +20,24 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   }, [onScan]);
 
   useEffect(() => {
-    function handleTestScan(event: Event) {
+    async function handleTestScan(event: Event) {
       if (process.env.NODE_ENV === "production") return;
       const memberId = (event as CustomEvent<unknown>).detail;
-      if (typeof memberId === "string" && memberId.trim()) {
-        void onScanRef.current(memberId.trim());
+      if (typeof memberId !== "string" || !memberId.trim()) return;
+      if (isProcessingScanRef.current) return;
+
+      if (scanner.current?.isScanning) {
+        if (scanner.current.isScanning) await scanner.current.stop();
+        scanner.current.clear();
+        scanner.current = null;
+        setIsScanning(false);
+      }
+
+      isProcessingScanRef.current = true;
+      try {
+        await onScanRef.current(memberId.trim());
+      } finally {
+        isProcessingScanRef.current = false;
       }
     }
 
@@ -50,7 +64,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   }
 
   async function startScan() {
-    if (isScanning) return;
+    if (isScanning || isProcessingScanRef.current) return;
     if (!window.isSecureContext) {
       onMessage(
         "Camera access requires HTTPS. Open this app over HTTPS on your phone.",
@@ -72,9 +86,15 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
         { facingMode: "environment" },
         { fps: 10, qrbox: { width: 200, height: 200 } },
         async (decodedText) => {
+          if (isProcessingScanRef.current) return;
+          isProcessingScanRef.current = true;
           await stopScanner();
           setIsScanning(false);
-          await onScan(decodedText);
+          try {
+            await onScanRef.current(decodedText);
+          } finally {
+            isProcessingScanRef.current = false;
+          }
         },
         () => undefined,
       );

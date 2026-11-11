@@ -1,8 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ellipsis, Plus, QrCode, Search, ShieldCheck } from "lucide-react";
+import {
+  Ellipsis,
+  Loader2,
+  Plus,
+  QrCode,
+  Search,
+  ShieldCheck,
+} from "lucide-react";
 
 import {
   checkInMember,
@@ -77,6 +84,8 @@ export default function CheckInView({
   const [trackedFields, setTrackedFields] = useState(
     event?.trackedFields ?? defaultTrackedFields,
   );
+  const [isCheckInPending, setIsCheckInPending] = useState(false);
+  const checkInPendingRef = useRef(false);
 
   // Server data is the source of truth: adopt it whenever the route re-renders
   // (e.g. after a Server Action revalidates), keeping optimistic updates between.
@@ -103,7 +112,9 @@ export default function CheckInView({
   }
 
   async function handleScan(memberId: string) {
-    if (!eventId) return;
+    if (!eventId || checkInPendingRef.current) return;
+    checkInPendingRef.current = true;
+    setIsCheckInPending(true);
     try {
       const checkIn = await checkInMember(eventId, memberId);
       const member: Member = {
@@ -123,6 +134,9 @@ export default function CheckInView({
         error instanceof Error ? error.message : "Unable to check in member",
         "error",
       );
+    } finally {
+      checkInPendingRef.current = false;
+      setIsCheckInPending(false);
     }
   }
 
@@ -351,7 +365,7 @@ export default function CheckInView({
               <CardContent className="p-6">
                 <div
                   className={`relative my-1 flex h-[211px] items-center justify-center overflow-hidden rounded-[11px] bg-gradient-to-br from-[#eeefff] via-[#f7f7ff] to-[#fdf1ef] ${
-                    isScanning ? "animate-pulse" : ""
+                    isScanning && !isCheckInPending ? "animate-pulse" : ""
                   }`}
                 >
                   <div
@@ -359,8 +373,14 @@ export default function CheckInView({
                     className="absolute inset-0 h-full w-full"
                   />
                   <div className="absolute size-[126px] rounded-full border border-[#5b5ce2]/20" />
-                  {!isScanning && (
+                  {!isScanning && !isCheckInPending && (
                     <QrCode className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 stroke-1 text-[#5b5ce2]" />
+                  )}
+                  {isCheckInPending && (
+                    <Loader2
+                      aria-hidden
+                      className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 animate-spin text-[#5b5ce2]"
+                    />
                   )}
                   <span className="absolute left-6 top-6 h-[17px] w-[17px] border-l-2 border-t-2 border-[#7778e0]" />
                   <span className="absolute right-6 top-6 h-[17px] w-[17px] border-r-2 border-t-2 border-[#7778e0]" />
@@ -368,22 +388,39 @@ export default function CheckInView({
                   <span className="absolute bottom-6 right-6 h-[17px] w-[17px] border-b-2 border-r-2 border-[#7778e0]" />
                   <span
                     className={`absolute top-[42%] h-px w-[70%] bg-gradient-to-r from-transparent via-[#5b5ce2] to-transparent ${
-                      isScanning ? "animate-pulse" : "animate-scan-line"
+                      isCheckInPending
+                        ? "opacity-0"
+                        : isScanning
+                          ? "animate-pulse"
+                          : "animate-scan-line"
                     }`}
                   />
-                  {isScanning && (
+                  {isScanning && !isCheckInPending && (
                     <p className="absolute bottom-[17px] m-0 text-sm text-[#7777a3]">
                       Looking for a code...
+                    </p>
+                  )}
+                  {isCheckInPending && (
+                    <p
+                      className="absolute bottom-[17px] m-0 text-sm text-[#7777a3]"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      Checking in...
                     </p>
                   )}
                 </div>
                 <Button
                   className="mt-[18px] h-auto w-full bg-[#5b5ce2] py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(91,92,226,.2)] hover:bg-[#4748c5]"
                   onClick={startScan}
-                  disabled={isScanning}
+                  disabled={isScanning || isCheckInPending}
                 >
                   <QrCode className="size-4" />
-                  {isScanning ? "Looking for a code..." : "Start camera"}
+                  {isCheckInPending
+                    ? "Checking in..."
+                    : isScanning
+                      ? "Looking for a code..."
+                      : "Start camera"}
                 </Button>
                 {isScanning && (
                   <Button
@@ -398,6 +435,7 @@ export default function CheckInView({
                   variant="link"
                   className="mx-auto mt-2 block h-auto p-0 text-sm font-normal text-[#85858c]"
                   onClick={handleManualEntry}
+                  disabled={isCheckInPending}
                 >
                   Enter member ID manually
                 </Button>
