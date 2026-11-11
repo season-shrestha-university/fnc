@@ -30,8 +30,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {toast && (
         <div
+          data-testid="scan-toast"
           role="status"
-          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-lg bg-[#17171a] px-4 py-3 text-sm font-medium text-white shadow-xl"
+          className="fixed left-1/2 top-5 z-50 -translate-x-1/2 rounded-lg bg-[#17171a] px-4 py-3 text-sm font-medium text-white shadow-xl"
         >
           {toast}
         </div>

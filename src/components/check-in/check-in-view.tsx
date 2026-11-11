@@ -30,6 +30,27 @@ import type { Member } from "./types";
 import { useQrScanner } from "./use-qr-scanner";
 import { getCurrentDate } from "@/lib/date";
 
+function playBeep(frequency: number) {
+  const AudioContextConstructor =
+    window.AudioContext ||
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!AudioContextConstructor) return;
+
+  const audioContext = new AudioContextConstructor();
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+  oscillator.frequency.value = frequency;
+  gain.gain.value = 0.08;
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.12);
+  oscillator.addEventListener("ended", () => void audioContext.close(), {
+    once: true,
+  });
+}
+
 export default function CheckInView({
   event,
   checkIns,
@@ -89,8 +110,10 @@ export default function CheckInView({
         color: getAvatarColor(checkIn.name),
       };
       setMembers((current) => [member, ...current]);
-      showToast(`${member.name} checked in`);
+      playBeep(880);
+      showToast(`${member.name} (${member.id}) checked in`);
     } catch (error) {
+      playBeep(440);
       showToast(
         error instanceof Error ? error.message : "Unable to check in member",
       );
@@ -325,7 +348,7 @@ export default function CheckInView({
                   />
                   <div className="absolute size-[126px] rounded-full border border-[#5b5ce2]/20" />
                   {!isScanning && (
-                    <QrCode className="relative z-10 size-12 stroke-1 text-[#5b5ce2]" />
+                    <QrCode className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 stroke-1 text-[#5b5ce2]" />
                   )}
                   <span className="absolute left-6 top-6 h-[17px] w-[17px] border-l-2 border-t-2 border-[#7778e0]" />
                   <span className="absolute right-6 top-6 h-[17px] w-[17px] border-r-2 border-t-2 border-[#7778e0]" />

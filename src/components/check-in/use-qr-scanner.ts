@@ -10,10 +10,25 @@ type UseQrScannerOptions = {
 
 export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   const scanner = useRef<Html5Qrcode | null>(null);
+  const onScanRef = useRef(onScan);
   const [isScanning, setIsScanning] = useState(false);
 
   useEffect(() => {
+    onScanRef.current = onScan;
+  }, [onScan]);
+
+  useEffect(() => {
+    function handleTestScan(event: Event) {
+      if (process.env.NODE_ENV === "production") return;
+      const memberId = (event as CustomEvent<unknown>).detail;
+      if (typeof memberId === "string" && memberId.trim()) {
+        void onScanRef.current(memberId.trim());
+      }
+    }
+
+    window.addEventListener("TEST_QR_SCAN", handleTestScan);
     return () => {
+      window.removeEventListener("TEST_QR_SCAN", handleTestScan);
       if (scanner.current?.isScanning) {
         void scanner.current.stop().then(() => scanner.current?.clear());
       }
