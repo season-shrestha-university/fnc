@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
+import type { ToastVariant } from "./toast-provider";
 
 type UseQrScannerOptions = {
   onScan: (memberId: string) => void | Promise<void>;
-  onMessage: (message: string) => void;
+  onMessage: (message: string, variant?: ToastVariant) => void;
 };
 
 export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
@@ -51,11 +52,14 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   async function startScan() {
     if (isScanning) return;
     if (!window.isSecureContext) {
-      onMessage("Camera access requires HTTPS. Open this app over HTTPS on your phone.");
+      onMessage(
+        "Camera access requires HTTPS. Open this app over HTTPS on your phone.",
+        "error",
+      );
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia) {
-      onMessage("This browser does not support camera access.");
+      onMessage("This browser does not support camera access.", "error");
       return;
     }
 
@@ -84,6 +88,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
           : errorName === "NotFoundError"
             ? "No camera was found on this device."
             : "Unable to access the camera. Check HTTPS and browser permissions.",
+        "error",
       );
     }
   }

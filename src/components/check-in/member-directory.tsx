@@ -144,7 +144,7 @@ export default function MemberDirectory({
       color: { dark: "#17171a", light: "#ffffff" },
     })
       .then(setQrDataUrl)
-      .catch(() => onMessage("Unable to generate this member QR code"));
+      .catch(() => onMessage("Unable to generate this member QR code", "error"));
   }, [onMessage, selectedMember]);
 
   function selectMember(member: DirectoryMember) {
@@ -167,10 +167,11 @@ export default function MemberDirectory({
       });
       setIsCreateOpen(false);
       selectMember(member);
-      onMessage(`Member created and QR generated for ${member.name}`);
+      onMessage(`Member created and QR generated for ${member.name}`, "success");
     } catch (error) {
       onMessage(
         error instanceof Error ? error.message : "Unable to create member",
+        "error",
       );
     } finally {
       setIsCreating(false);
@@ -183,14 +184,14 @@ export default function MemberDirectory({
     link.href = qrDataUrl;
     link.download = `${selectedMember.memberId}-qr.png`;
     link.click();
-    onMessage(`QR code downloaded for ${selectedMember.name}`);
+    onMessage(`QR code downloaded for ${selectedMember.name}`, "success");
   }
 
   function printQr() {
     if (!qrDataUrl || !selectedMember) return;
     const printWindow = window.open("", "_blank", "width=500,height=600");
     if (!printWindow) {
-      onMessage("Allow pop-ups to print a QR code");
+      onMessage("Allow pop-ups to print a QR code", "error");
       return;
     }
     printWindow.document.write(`

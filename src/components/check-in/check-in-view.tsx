@@ -111,11 +111,12 @@ export default function CheckInView({
       };
       setMembers((current) => [member, ...current]);
       playBeep(880);
-      showToast(`${member.name} (${member.id}) checked in`);
+      showToast(`${member.name} (${member.id}) checked in`, "success");
     } catch (error) {
       playBeep(440);
       showToast(
         error instanceof Error ? error.message : "Unable to check in member",
+        "error",
       );
     }
   }
@@ -136,10 +137,11 @@ export default function CheckInView({
       setMembers((current) =>
         current.filter((member) => member.checkInId !== checkInId),
       );
-      showToast("Member removed from today’s check-ins");
+      showToast("Member removed from today’s check-ins", "success");
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Unable to remove check-in",
+        "error",
       );
     }
   }
@@ -164,12 +166,13 @@ export default function CheckInView({
         error instanceof Error
           ? error.message
           : "Unable to connect to the export service",
+        "error",
       );
       return;
     }
 
     if (!response.ok) {
-      showToast("Unable to download attendance");
+      showToast("Unable to download attendance", "error");
       return;
     }
 
@@ -180,7 +183,7 @@ export default function CheckInView({
     link.download = `${activeEvent.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-attendance.xlsx`;
     link.click();
     URL.revokeObjectURL(url);
-    showToast("Attendance Excel file downloaded");
+    showToast("Attendance Excel file downloaded", "success");
   }
 
   async function saveCurrentEvent() {
@@ -206,10 +209,12 @@ export default function CheckInView({
         wasActive
           ? "Event updated and ready for check-in"
           : "Event created and ready for check-in",
+        "success",
       );
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Unable to save event",
+        "error",
       );
     }
   }
@@ -223,11 +228,12 @@ export default function CheckInView({
       setIsAttendanceOpen(false);
       setIsDeleteEventOpen(false);
       setIsEventOpen(false);
-      showToast("Event and check-in data deleted");
+      showToast("Event and check-in data deleted", "success");
       startTransition(() => router.push("/events"));
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Unable to delete event",
+        "error",
       );
     }
   }
@@ -235,6 +241,7 @@ export default function CheckInView({
   const visibleMembers = members.filter((member) =>
     `${member.name} ${member.id}`.toLowerCase().includes(search.toLowerCase()),
   );
+  const latestMember = members[0];
 
   return (
     <>
@@ -429,23 +436,29 @@ export default function CheckInView({
                   </strong>
                 </div>
                 <Separator className="my-7 bg-[#e7e7ea]" />
-                <div className="flex items-center gap-2.5">
-                  <Avatar
-                    initials="AW"
-                    color="bg-[#dff3e8] text-[#32825d]"
-                  />
-                  <div>
-                    <span className="mb-1 block text-xs text-[#85858c]">
-                      Last check-in
-                    </span>
-                    <strong className="block text-base">
-                      Alex Williams
-                    </strong>
+                {latestMember ? (
+                  <div className="flex items-center gap-2.5">
+                    <Avatar
+                      initials={latestMember.initials}
+                      color={latestMember.color}
+                    />
+                    <div>
+                      <span className="mb-1 block text-xs text-[#85858c]">
+                        Last check-in
+                      </span>
+                      <strong className="block text-base">
+                        {latestMember.name}
+                      </strong>
+                    </div>
+                    <time className="ml-auto text-xs text-[#85858c]">
+                      {formatCheckInDate(latestMember)}
+                    </time>
                   </div>
-                  <time className="ml-auto text-xs text-[#85858c]">
-                    2024-06-18
-                  </time>
-                </div>
+                ) : (
+                  <p className="text-sm text-[#85858c]">
+                    No members checked in yet.
+                  </p>
+                )}
                 <Button
                   variant="link"
                   className="mt-6 h-auto p-0 text-sm font-bold text-[#5b5ce2]"

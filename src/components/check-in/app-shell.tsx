@@ -132,10 +132,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   async function signOut() {
     const { error } = await getSupabaseBrowserClient().auth.signOut();
     if (error) {
-      showToast(error.message);
+      showToast(error.message, "error");
       return;
     }
-    showToast("Signed out successfully");
+    showToast("Signed out successfully", "success");
     router.replace("/login");
   }
 

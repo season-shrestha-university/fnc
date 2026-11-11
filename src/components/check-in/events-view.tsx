@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, use, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, use, useState } from "react";
 
 import { saveEvent } from "@/app/actions";
 import type { EventSummary } from "@/app/actions";
@@ -31,9 +30,7 @@ export default function EventsView({
   events?: EventSummary[];
   eventsPromise?: Promise<EventSummary[]>;
 }) {
-  const router = useRouter();
   const showToast = useToast();
-  const [, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [isEventOpen, setIsEventOpen] = useState(false);
   const [eventName, setEventName] = useState("");
@@ -54,11 +51,11 @@ export default function EventsView({
     try {
       await saveEvent({ name: nextEventName, trackedFields });
       setIsEventOpen(false);
-      showToast("Event created and ready for check-in");
-      startTransition(() => router.push("/"));
+      showToast("Event created and ready for check-in", "success");
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Unable to save event",
+        "error",
       );
     }
   }

@@ -82,9 +82,11 @@ export function EventsGrid({
   onCreate: () => void;
   onSelect?: (eventId: string) => void;
 }) {
-  const filteredEvents = events.filter((event) =>
-    event.name.toLowerCase().includes(query.trim().toLowerCase()),
-  );
+  const filteredEvents = events
+    .toReversed()
+    .filter((event) =>
+      event.name.toLowerCase().includes(query.trim().toLowerCase()),
+    );
 
   if (filteredEvents.length) {
     return (
