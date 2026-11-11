@@ -1,0 +1,175 @@
+"use client";
+
+import { useState } from "react";
+import { ArrowLeft, Check, Download, Search } from "lucide-react";
+import { useSwipeable } from "react-swipeable";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import type { Member } from "./types";
+
+export default function AttendanceView({
+  activeEvent,
+  members,
+  onBack,
+  onDelete,
+  onDownload,
+}: {
+  activeEvent: string;
+  members: Member[];
+  onBack: () => void;
+  onDelete: (checkInId: string) => void;
+  onDownload: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const visibleMembers = members.filter((member) =>
+    `${member.name} ${member.id}`.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  return (
+    <section className="py-8 sm:py-12">
+      <Button
+        variant="ghost"
+        className="mb-8 gap-2 px-0 text-sm text-[#5b5ce2] hover:bg-transparent"
+        onClick={onBack}
+      >
+        <ArrowLeft className="size-4" />
+        Back to check-in
+      </Button>
+      <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+          <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
+            Attendance review
+          </span>
+          <h1 className="mt-2 text-4xl font-bold tracking-[-.05em]">
+            {activeEvent}
+          </h1>
+          <p className="mt-2 text-sm text-[#85858c]">
+            {members.length} member{members.length === 1 ? "" : "s"} checked in
+          </p>
+        </div>
+        <Button
+          className="h-10 w-full gap-2 bg-[#5b5ce2] px-5 text-sm font-bold text-white hover:bg-[#4748c5] sm:w-auto"
+          onClick={onDownload}
+        >
+          <Download className="size-4" />
+          Download Excel
+        </Button>
+      </div>
+      <div className="relative mb-4 w-full sm:w-56">
+        <Search className="absolute left-2.5 top-2 size-4 text-[#85858c]" />
+        <Input
+          type="search"
+          placeholder="Search members"
+          aria-label="Search attendance"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="h-9 rounded-lg border-[#e7e7ea] bg-white pl-8 text-sm"
+        />
+      </div>
+      <div className="overflow-hidden rounded-[13px] border border-[#e7e7ea] bg-white shadow-[0_12px_35px_rgba(27,27,42,.06)]">
+        {visibleMembers.map((member) => (
+          <MemberRow
+            key={member.id}
+            member={member}
+            onDelete={onDelete}
+            isLast={member === visibleMembers[visibleMembers.length - 1]}
+          />
+        ))}
+        {visibleMembers.length === 0 && (
+          <p className="px-5 py-8 text-center text-base text-[#85858c]">
+            No checked-in members match that search.
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+export function MemberRow({
+  member,
+  onDelete,
+  isLast,
+}: {
+  member: Member;
+  onDelete: (checkInId: string) => void;
+  isLast: boolean;
+}) {
+  const [offset, setOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const swipeHandlers = useSwipeable({
+    trackMouse: true,
+    preventScrollOnSwipe: true,
+    onSwipeStart: () => setIsDragging(true),
+    onSwiping: ({ deltaX, dir }) => {
+      if (dir === "Left") setOffset(Math.max(-120, Math.min(0, deltaX)));
+    },
+    onSwipedLeft: ({ absX }) => {
+      setIsDragging(false);
+      if (absX >= 80) {
+        onDelete(member.checkInId);
+      } else {
+        setOffset(0);
+      }
+    },
+    onSwiped: () => {
+      setIsDragging(false);
+      setOffset(0);
+    },
+  });
+
+  return (
+    <div
+      className={`relative overflow-hidden bg-[#fbe9e8] ${
+        isLast ? "" : "border-b border-[#f0f0f2]"
+      }`}
+    >
+      <div className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-[#e76b60] text-sm font-semibold text-white">
+        Delete
+      </div>
+      <div
+        className="relative flex items-center gap-3 bg-white px-5 py-3.5"
+        style={{
+          touchAction: "pan-y",
+          transform: `translateX(${offset}px)`,
+          transition: isDragging ? "none" : "transform 180ms ease-out",
+        }}
+        {...swipeHandlers}
+      >
+        <Avatar initials={member.initials} color={member.color} />
+        <div className="min-w-0 flex-1">
+          <strong className="block text-sm">{member.name}</strong>
+          <span className="mt-1 block text-sm text-[#85858c]">
+            Member ID · {member.id}
+          </span>
+        </div>
+        <time className="text-sm text-[#85858c]">
+          {member.createdDate ?? member.date}
+        </time>
+        <span className="flex size-[19px] items-center justify-center rounded-full bg-[#e1f4e9] text-[#32a06c]">
+          <Check className="size-3" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export function Avatar({
+  initials,
+  color = "bg-[#e4e3fb] text-[#5551aa]",
+  small = false,
+}: {
+  initials: string;
+  color?: string;
+  small?: boolean;
+}) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+        small ? "size-[29px]" : "size-[34px]"
+      } ${color}`}
+    >
+      {initials}
+    </div>
+  );
+}
