@@ -9,10 +9,16 @@ async function EventCheckInContent({
   params,
 }: Pick<PageProps<"/events/[id]/check-in">, "params">) {
   const { id } = await params;
-  const { event, checkIns } = await getDashboardData(id);
+  const { event, memberCount, checkIns } = await getDashboardData(id);
   if (!event) redirect("/events");
 
-  return <CheckInView event={event} checkIns={checkIns} />;
+  return (
+    <CheckInView
+      event={event}
+      memberCount={memberCount}
+      checkIns={checkIns}
+    />
+  );
 }
 
 export default function EventCheckInPage({

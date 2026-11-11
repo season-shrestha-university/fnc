@@ -1,18 +1,24 @@
 import { Suspense } from "react";
 
-import { getDashboardData } from "@/app/actions";
-import CheckInView from "@/components/check-in/check-in-view";
-import { CheckInSkeleton } from "@/components/check-in/workspace-skeleton";
+import { getEvents } from "@/app/actions";
+import {
+  DashboardHeader,
+  DashboardMetrics,
+} from "@/components/check-in/dashboard-view";
+import { DashboardDataSkeleton } from "@/components/check-in/workspace-skeleton";
 
-async function HomeCheckInContent() {
-  const { event, checkIns } = await getDashboardData();
-  return <CheckInView event={event} checkIns={checkIns} />;
+async function DashboardContent() {
+  const events = await getEvents();
+  return <DashboardMetrics events={events} />;
 }
 
 export default function Home() {
   return (
-    <Suspense fallback={<CheckInSkeleton />}>
-      <HomeCheckInContent />
-    </Suspense>
+    <section className="py-8 sm:py-12" aria-labelledby="dashboard-heading">
+      <DashboardHeader />
+      <Suspense fallback={<DashboardDataSkeleton />}>
+        <DashboardContent />
+      </Suspense>
+    </section>
   );
 }

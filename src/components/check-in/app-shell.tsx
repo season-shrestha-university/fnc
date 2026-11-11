@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Avatar } from "./attendance-view";
+import RollCallLogo from "./rollcall-logo";
 import { useToast } from "./toast-provider";
 
 const navItems = [
@@ -33,11 +34,8 @@ function isActive(pathname: string | null, href: string) {
 function Logo() {
   return (
     <span className="flex items-center gap-2.5">
-      <span className="flex h-[27px] w-[27px] rotate-[-8deg] items-center justify-center gap-0.5 rounded-[9px] bg-[#17171a] px-1.5 py-1.5">
-        <span className="h-full w-[5px] rounded bg-white" />
-        <span className="mt-0.5 h-2.5 w-[5px] rounded bg-white/50" />
-      </span>
-      Welcome Desk
+      <RollCallLogo compact />
+      RollCall
     </span>
   );
 }

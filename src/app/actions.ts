@@ -12,6 +12,7 @@ export type DashboardData = {
     name: string;
     trackedFields: string[];
   } | null;
+  memberCount: number;
   checkIns: Array<{
     checkInId: string;
     id: string;
@@ -88,7 +89,7 @@ export async function getDashboardData(
     .maybeSingle();
 
   if (eventError) throw new Error(getErrorMessage(eventError));
-  if (!event) return { event: null, checkIns: [] };
+  if (!event) return { event: null, memberCount: 0, checkIns: [] };
 
   const { data: checkIns, error: checkInsError } = await supabase
     .from("check_ins")
@@ -99,13 +100,18 @@ export async function getDashboardData(
   if (checkInsError) throw new Error(getErrorMessage(checkInsError));
 
   const memberIds = (checkIns ?? []).map((checkIn) => checkIn.member_id);
-  const { data: members, error: membersError } = memberIds.length
-    ? await supabase
-        .from("members")
-        .select("id, member_id, name")
-        .in("id", memberIds)
-    : { data: [], error: null };
+  const [{ data: members, error: membersError }, { count: memberCount, error: memberCountError }] =
+    await Promise.all([
+      memberIds.length
+        ? supabase
+            .from("members")
+            .select("id, member_id, name")
+            .in("id", memberIds)
+        : Promise.resolve({ data: [], error: null }),
+      supabase.from("members").select("id", { count: "exact", head: true }),
+    ]);
   if (membersError) throw new Error(getErrorMessage(membersError));
+  if (memberCountError) throw new Error(getErrorMessage(memberCountError));
 
   const membersById = new Map(
     (members ?? []).map((member) => [member.id, member]),
@@ -121,6 +127,7 @@ export async function getDashboardData(
           )
         : [],
     },
+    memberCount: memberCount ?? 0,
     checkIns: (checkIns ?? []).flatMap((checkIn) => {
       const member = membersById.get(checkIn.member_id);
       if (!member) return [];

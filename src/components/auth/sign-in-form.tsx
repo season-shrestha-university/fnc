@@ -7,6 +7,7 @@ import { ArrowRight, LockKeyhole } from "lucide-react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import RollCallLogo from "@/components/check-in/rollcall-logo";
 
 type SignInFormProps = {
   onSuccess?: () => void;
@@ -48,12 +49,9 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7f7f9] px-5 py-10">
       <section className="w-full max-w-[410px] rounded-[26px] border border-[#e7e7ea] bg-white p-8 shadow-[0_24px_70px_rgba(23,23,26,0.08)]">
-        <div className="mb-8 flex h-12 w-12 rotate-[-8deg] items-center justify-center gap-1 rounded-[14px] bg-[#17171a] px-2.5 py-2.5">
-          <span className="h-full w-2 rounded bg-white" />
-          <span className="mt-1 h-5 w-2 rounded bg-white/50" />
-        </div>
+        <RollCallLogo className="mb-8" />
         <p className="mb-2 text-xs font-bold uppercase tracking-[.14em] text-[#85858c]">
-          Welcome Desk
+          RollCall
         </p>
         <h1 className="text-[30px] font-extrabold tracking-[-.04em] text-[#17171a]">
           Sign in to check in

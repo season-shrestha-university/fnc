@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Welcome Desk | Community Check-in",
+  title: "RollCall | Community Check-in",
   description: "A fast, friendly check-in desk for community events.",
 };
 

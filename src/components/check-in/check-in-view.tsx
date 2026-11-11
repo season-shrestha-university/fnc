@@ -53,9 +53,11 @@ function playBeep(frequency: number) {
 
 export default function CheckInView({
   event,
+  memberCount,
   checkIns,
 }: {
   event: DashboardData["event"];
+  memberCount: DashboardData["memberCount"];
   checkIns: DashboardData["checkIns"];
 }) {
   const router = useRouter();
@@ -88,6 +90,9 @@ export default function CheckInView({
   }
 
   const attendance = members.length;
+  const attendancePercentage = memberCount
+    ? Math.round((attendance / memberCount) * 100)
+    : 0;
   const activeEvent = currentEvent?.name ?? "";
   const eventId = currentEvent?.id ?? "";
 
@@ -427,12 +432,15 @@ export default function CheckInView({
                   </span>
                 </div>
                 <div className="h-[7px] overflow-hidden rounded-full bg-[#ededf2]">
-                  <span className="block h-full w-[62%] rounded-full bg-gradient-to-r from-[#5b5ce2] to-[#8d8eea]" />
+                  <span
+                    className="block h-full rounded-full bg-gradient-to-r from-[#5b5ce2] to-[#8d8eea]"
+                    style={{ width: `${attendancePercentage}%` }}
+                  />
                 </div>
                 <div className="mt-2 flex justify-between text-sm text-[#85858c]">
-                  <span>62% of expected guests</span>
+                  <span>{attendancePercentage}% of expected guests</span>
                   <strong className="font-semibold text-[#5d5d65]">
-                    39 expected
+                    {memberCount} expected
                   </strong>
                 </div>
                 <Separator className="my-7 bg-[#e7e7ea]" />
