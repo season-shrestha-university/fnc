@@ -34,13 +34,16 @@
 
 /* html5-qrcode: fill the preview region so decoding uses the full frame */
 #qr-reader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1;
 }
 
 #qr-reader video {
   width: 100% !important;
-  height: 100% !important;
-  object-fit: cover;
+  height: auto !important;
+  max-height: 100%;
   border-radius: 11px;
 }
 
