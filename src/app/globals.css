@@ -32,21 +32,6 @@
   animation: scan-line 2.4s ease-in-out infinite;
 }
 
-/* Keep the rendered video aspect ratio aligned with html5-qrcode's sampler. */
-#qr-reader {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-}
-
-#qr-reader video {
-  width: 100% !important;
-  height: auto !important;
-  max-height: 100%;
-  border-radius: 11px;
-}
-
 @theme inline {
     --font-heading: var(--font-geist-sans);
     --font-sans: var(--font-geist-sans);

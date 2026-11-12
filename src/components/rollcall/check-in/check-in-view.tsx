@@ -140,7 +140,7 @@ export default function CheckInView({
     }
   }
 
-  const { isScanning, startScan, cancelScan } = useQrScanner({
+  const { isScanning, startScan, cancelScan, videoRef } = useQrScanner({
     onScan: handleScan,
     onMessage: showToast,
   });
@@ -374,7 +374,17 @@ export default function CheckInView({
                   <div
                     id="qr-reader"
                     className="absolute inset-0 z-[1] h-full w-full"
-                  />
+                  >
+                    <video
+                      ref={videoRef}
+                      aria-label="Camera preview"
+                      className={`h-full w-full rounded-[11px] object-cover ${
+                        isScanning && !isCheckInPending ? "" : "hidden"
+                      }`}
+                      muted
+                      playsInline
+                    />
+                  </div>
                   <div className="pointer-events-none absolute z-[2] size-[126px] rounded-full border border-[#5b5ce2]/20" />
                   {!isScanning && !isCheckInPending && (
                     <QrCode className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 stroke-1 text-[#5b5ce2]" />

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
 
 type UseQrScannerOptions = {
@@ -9,33 +8,88 @@ type UseQrScannerOptions = {
   onMessage: (message: string, variant?: ToastVariant) => void;
 };
 
-const SCAN_FPS = 5;
-
-const scannerConfig = {
-  verbose: false,
-  // Native BarcodeDetector is unreliable for QR on many mobile browsers; use the library decoder.
-  useBarCodeDetectorIfSupported: false,
-  formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+type QrDecoder = {
+  decodeAsync(canvas: HTMLCanvasElement): Promise<{ text: string }>;
 };
 
-const scanConfig = {
-  fps: SCAN_FPS,
-  // Scan the full camera frame. A centered crop can miss a code on mobile,
-  // where the preview aspect ratio differs from the camera sensor.
-  disableFlip: true,
+// ~5 decodes per second.
+const SCAN_INTERVAL_MS = 200;
+
+// Frames are decoded from the camera's native resolution (capped for speed),
+// never from the on-screen preview size. Phones deliver portrait frames that
+// don't match the preview box, and sampling at preview size squashed and
+// shrank the QR so much that it never decoded.
+const MAX_DECODE_EDGE = 1280;
+
+const cameraConstraints: MediaStreamConstraints = {
+  audio: false,
+  video: {
+    // `ideal` (not `exact`) so laptops without a back camera still work.
+    facingMode: { ideal: "environment" },
+    width: { ideal: 1280 },
+    height: { ideal: 720 },
+  },
 };
 
-async function findBackCameraId(): Promise<string | undefined> {
+const silentLogger = {
+  log() {},
+  warn() {},
+  logError() {},
+  logErrors() {},
+};
+
+let decoderPromise: Promise<QrDecoder> | null = null;
+
+// The decoder (ZXing, bundled with html5-qrcode) is loaded only when a scan starts.
+function loadDecoder(): Promise<QrDecoder> {
+  decoderPromise ??= Promise.all([
+    import("html5-qrcode/esm/code-decoder"),
+    import("html5-qrcode/esm/core"),
+  ])
+    .then(
+      ([{ Html5QrcodeShim }, { Html5QrcodeSupportedFormats }]) =>
+        new Html5QrcodeShim(
+          [Html5QrcodeSupportedFormats.QR_CODE],
+          // Native BarcodeDetector is unreliable for QR on many mobile browsers.
+          false,
+          false,
+          silentLogger,
+        ),
+    )
+    .catch((error: unknown) => {
+      decoderPromise = null;
+      throw error;
+    });
+  return decoderPromise;
+}
+
+async function openCamera(): Promise<MediaStream> {
   try {
-    const cameras = await Html5Qrcode.getCameras();
-    const backCamera = cameras.find((camera) =>
-      /back|rear|environment/i.test(camera.label),
-    );
-    return backCamera?.id;
-  } catch {
-    // Camera enumeration can fail before permission is granted.
+    return await navigator.mediaDevices.getUserMedia(cameraConstraints);
+  } catch (error) {
+    const errorName = error instanceof DOMException ? error.name : undefined;
+    if (errorName !== "OverconstrainedError" && errorName !== "NotFoundError") {
+      throw error;
+    }
+    // Fall back to whatever camera the device offers.
+    return navigator.mediaDevices.getUserMedia({ audio: false, video: true });
   }
-  return undefined;
+}
+
+function cameraErrorMessage(error: unknown) {
+  const errorName = error instanceof DOMException ? error.name : undefined;
+  switch (errorName) {
+    case "NotAllowedError":
+      return "Camera permission was denied. Allow camera access in browser settings.";
+    case "NotFoundError":
+      return "No camera was found on this device.";
+    case "NotReadableError":
+      return "The camera is in use by another app. Close it and try again.";
+    case "OverconstrainedError":
+      return "Could not start the camera with these settings. Try again or use manual entry.";
+    default:
+      return "Unable to access the camera. Check HTTPS and browser permissions.";
+  }
 }
 
 function normalizeMemberId(raw: string) {
@@ -43,7 +97,11 @@ function normalizeMemberId(raw: string) {
 }
 
 export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
-  const scanner = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const scanTimerRef = useRef<number | null>(null);
+  // Incremented on every start/stop so stale async work can detect it was cancelled.
+  const sessionRef = useRef(0);
   const onScanRef = useRef(onScan);
   const isProcessingScanRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -52,48 +110,93 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     onScanRef.current = onScan;
   }, [onScan]);
 
-  useEffect(() => {
-    async function handleTestScan(event: Event) {
-      if (process.env.NODE_ENV === "production") return;
-      const memberId = (event as CustomEvent<unknown>).detail;
-      if (typeof memberId !== "string" || !memberId.trim()) return;
+  const stopCamera = useCallback(() => {
+    sessionRef.current += 1;
+    if (scanTimerRef.current !== null) {
+      window.clearTimeout(scanTimerRef.current);
+      scanTimerRef.current = null;
+    }
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+    streamRef.current = null;
+    const video = videoRef.current;
+    if (video) {
+      video.pause();
+      video.srcObject = null;
+    }
+  }, []);
+
+  const submitScan = useCallback(
+    async (rawValue: string) => {
       if (isProcessingScanRef.current) return;
-
-      if (scanner.current?.isScanning) {
-        if (scanner.current.isScanning) await scanner.current.stop();
-        scanner.current.clear();
-        scanner.current = null;
-        setIsScanning(false);
-      }
-
       isProcessingScanRef.current = true;
+      stopCamera();
+      setIsScanning(false);
       try {
-        await onScanRef.current(normalizeMemberId(memberId));
+        await onScanRef.current(normalizeMemberId(rawValue));
       } finally {
         isProcessingScanRef.current = false;
       }
+    },
+    [stopCamera],
+  );
+
+  useEffect(() => {
+    function handleTestScan(event: Event) {
+      if (process.env.NODE_ENV === "production") return;
+      const memberId = (event as CustomEvent<unknown>).detail;
+      if (typeof memberId !== "string" || !memberId.trim()) return;
+      void submitScan(memberId);
     }
 
     window.addEventListener("TEST_QR_SCAN", handleTestScan);
     return () => {
       window.removeEventListener("TEST_QR_SCAN", handleTestScan);
-      if (scanner.current?.isScanning) {
-        void scanner.current.stop().then(() => scanner.current?.clear());
-      }
+      stopCamera();
     };
-  }, []);
+  }, [stopCamera, submitScan]);
 
-  async function stopScanner() {
-    if (!scanner.current) return;
-    if (scanner.current.isScanning) await scanner.current.stop();
-    scanner.current.clear();
-    scanner.current = null;
-  }
+  function scheduleScan(
+    session: number,
+    decoder: QrDecoder,
+    canvas: HTMLCanvasElement,
+    context: CanvasRenderingContext2D,
+  ) {
+    scanTimerRef.current = window.setTimeout(async () => {
+      if (session !== sessionRef.current) return;
 
-  async function stopScan() {
-    if (!scanner.current) return;
-    await stopScanner();
-    setIsScanning(false);
+      const video = videoRef.current;
+      let decodedText: string | undefined;
+      if (
+        video &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        video.videoWidth > 0
+      ) {
+        const scale = Math.min(
+          1,
+          MAX_DECODE_EDGE / Math.max(video.videoWidth, video.videoHeight),
+        );
+        const width = Math.round(video.videoWidth * scale);
+        const height = Math.round(video.videoHeight * scale);
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        // Full frame, uniform scale: the QR keeps its square shape.
+        context.drawImage(video, 0, 0, width, height);
+        try {
+          decodedText = (await decoder.decodeAsync(canvas)).text;
+        } catch {
+          // No QR code in this frame.
+        }
+      }
+
+      if (session !== sessionRef.current) return;
+      if (decodedText) {
+        await submitScan(decodedText);
+        return;
+      }
+      scheduleScan(session, decoder, canvas, context);
+    }, SCAN_INTERVAL_MS);
   }
 
   async function startScan() {
@@ -110,80 +213,54 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
       return;
     }
 
+    stopCamera();
+    const session = sessionRef.current;
     setIsScanning(true);
-    const nextScanner = new Html5Qrcode("qr-reader", scannerConfig);
-    scanner.current = nextScanner;
+
+    // Load the decoder while the camera permission prompt is open.
+    const decoderLoad = loadDecoder();
+    decoderLoad.catch(() => undefined);
 
     try {
-      await nextScanner.start(
-        { facingMode: "environment" },
-        scanConfig,
-        async (decodedText) => {
-          if (isProcessingScanRef.current) return;
-          isProcessingScanRef.current = true;
-          await stopScanner();
-          setIsScanning(false);
-          try {
-            await onScanRef.current(normalizeMemberId(decodedText));
-          } finally {
-            isProcessingScanRef.current = false;
-          }
-        },
-        () => undefined,
-      );
-    } catch (error) {
-      const errorName = error instanceof DOMException ? error.name : undefined;
-      const canTryCameraId =
-        errorName === "NotFoundError" || errorName === "OverconstrainedError";
-
-      if (canTryCameraId) {
-        const backCameraId = await findBackCameraId();
-        if (backCameraId) {
-          try {
-            nextScanner.clear();
-            await nextScanner.start(
-              backCameraId,
-              scanConfig,
-              async (decodedText) => {
-                if (isProcessingScanRef.current) return;
-                isProcessingScanRef.current = true;
-                await stopScanner();
-                setIsScanning(false);
-                try {
-                  await onScanRef.current(normalizeMemberId(decodedText));
-                } finally {
-                  isProcessingScanRef.current = false;
-                }
-              },
-              () => undefined,
-            );
-            return;
-          } catch {
-            // Report the original camera error below if the device-specific fallback fails.
-          }
-        }
+      const stream = await openCamera();
+      if (session !== sessionRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
       }
+      streamRef.current = stream;
 
-      scanner.current = null;
+      const video = videoRef.current;
+      if (!video) throw new Error("Camera preview is not mounted.");
+      video.muted = true;
+      video.playsInline = true;
+      video.srcObject = stream;
+      await video.play();
+
+      const decoder = await decoderLoad;
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("Canvas is not supported.");
+
+      if (session !== sessionRef.current) return;
+      scheduleScan(session, decoder, canvas, context);
+    } catch (error) {
+      // Cancelled while starting; stopCamera() already cleaned up.
+      if (session !== sessionRef.current) return;
+      stopCamera();
       setIsScanning(false);
-      onMessage(
-        errorName === "NotAllowedError"
-          ? "Camera permission was denied. Allow camera access in browser settings."
-          : errorName === "NotFoundError"
-            ? "No camera was found on this device."
-            : errorName === "OverconstrainedError"
-              ? "Could not start the camera with these settings. Try again or use manual entry."
-              : "Unable to access the camera. Check HTTPS and browser permissions.",
-        "error",
-      );
+      onMessage(cameraErrorMessage(error), "error");
     }
   }
 
-  async function cancelScan() {
-    await stopScanner();
+  function stopScan() {
+    stopCamera();
     setIsScanning(false);
+  }
+
+  function cancelScan() {
+    stopScan();
     onMessage("Scan cancelled");
   }
 
-  return { isScanning, startScan, cancelScan, stopScan };
+  return { isScanning, startScan, cancelScan, stopScan, videoRef };
 }
