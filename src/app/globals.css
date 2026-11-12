@@ -32,7 +32,7 @@
   animation: scan-line 2.4s ease-in-out infinite;
 }
 
-/* html5-qrcode: fill the preview region so decoding uses the full frame */
+/* Keep the rendered video aspect ratio aligned with html5-qrcode's sampler. */
 #qr-reader {
   display: flex;
   align-items: center;

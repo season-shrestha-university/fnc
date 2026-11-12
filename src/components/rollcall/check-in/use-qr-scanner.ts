@@ -9,7 +9,7 @@ type UseQrScannerOptions = {
   onMessage: (message: string, variant?: ToastVariant) => void;
 };
 
-const SCAN_FPS = 15;
+const SCAN_FPS = 5;
 
 const scannerConfig = {
   verbose: false,
@@ -20,11 +20,9 @@ const scannerConfig = {
 
 const scanConfig = {
   fps: SCAN_FPS,
-  // Dynamic region: large enough to read codes, without the old fixed 200×200 blind spot.
-  qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-    const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
-    return { width: edge, height: edge };
-  },
+  // Scan the full camera frame. A centered crop can miss a code on mobile,
+  // where the preview aspect ratio differs from the camera sensor.
+  disableFlip: true,
 };
 
 async function findBackCameraId(): Promise<string | undefined> {
