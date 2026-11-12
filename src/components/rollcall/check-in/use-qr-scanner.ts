@@ -13,15 +13,35 @@ const SCAN_FPS = 15;
 
 const scannerConfig = {
   verbose: false,
-  useBarCodeDetectorIfSupported: true,
+  // Native BarcodeDetector is unreliable for QR on many mobile browsers; use the library decoder.
+  useBarCodeDetectorIfSupported: false,
   formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
 };
 
-const cameraConstraints: MediaTrackConstraints = {
-  facingMode: { ideal: "environment" },
-  width: { min: 640, ideal: 1280 },
-  height: { min: 480, ideal: 720 },
+const scanConfig = {
+  fps: SCAN_FPS,
+  // Dynamic region: large enough to read codes, without the old fixed 200×200 blind spot.
+  qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+    const edge = Math.floor(Math.min(viewfinderWidth, viewfinderHeight) * 0.9);
+    return { width: edge, height: edge };
+  },
 };
+
+async function resolveBackCamera(): Promise<
+  string | { facingMode: "environment" }
+> {
+  try {
+    const cameras = await Html5Qrcode.getCameras();
+    const backCamera = cameras.find((camera) =>
+      /back|rear|environment/i.test(camera.label),
+    );
+    if (backCamera) return backCamera.id;
+    if (cameras.length > 0) return cameras[cameras.length - 1]!.id;
+  } catch {
+    // getCameras() can fail before permission; facingMode is the portable fallback.
+  }
+  return { facingMode: "environment" };
+}
 
 function normalizeMemberId(raw: string) {
   return raw.replace(/\u0000/g, "").trim();
@@ -100,13 +120,10 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     scanner.current = nextScanner;
 
     try {
+      const camera = await resolveBackCamera();
       await nextScanner.start(
-        cameraConstraints,
-        {
-          fps: SCAN_FPS,
-          // No qrbox: scan the full viewfinder (fixed 200×200 was missing most codes).
-          videoConstraints: cameraConstraints,
-        },
+        camera,
+        scanConfig,
         async (decodedText) => {
           if (isProcessingScanRef.current) return;
           isProcessingScanRef.current = true;
@@ -129,7 +146,9 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
           ? "Camera permission was denied. Allow camera access in browser settings."
           : errorName === "NotFoundError"
             ? "No camera was found on this device."
-            : "Unable to access the camera. Check HTTPS and browser permissions.",
+            : errorName === "OverconstrainedError"
+              ? "Could not start the camera with these settings. Try again or use manual entry."
+              : "Unable to access the camera. Check HTTPS and browser permissions.",
         "error",
       );
     }

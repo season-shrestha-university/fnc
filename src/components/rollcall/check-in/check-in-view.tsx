@@ -373,9 +373,9 @@ export default function CheckInView({
                 >
                   <div
                     id="qr-reader"
-                    className="absolute inset-0 h-full w-full"
+                    className="absolute inset-0 z-[1] h-full w-full"
                   />
-                  <div className="absolute size-[126px] rounded-full border border-[#5b5ce2]/20" />
+                  <div className="pointer-events-none absolute z-[2] size-[126px] rounded-full border border-[#5b5ce2]/20" />
                   {!isScanning && !isCheckInPending && (
                     <QrCode className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 stroke-1 text-[#5b5ce2]" />
                   )}
@@ -385,12 +385,12 @@ export default function CheckInView({
                       className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 animate-spin text-[#5b5ce2]"
                     />
                   )}
-                  <span className="absolute left-6 top-6 h-[17px] w-[17px] border-l-2 border-t-2 border-[#7778e0]" />
-                  <span className="absolute right-6 top-6 h-[17px] w-[17px] border-r-2 border-t-2 border-[#7778e0]" />
-                  <span className="absolute bottom-6 left-6 h-[17px] w-[17px] border-b-2 border-l-2 border-[#7778e0]" />
-                  <span className="absolute bottom-6 right-6 h-[17px] w-[17px] border-b-2 border-r-2 border-[#7778e0]" />
+                  <span className="pointer-events-none absolute z-[2] left-6 top-6 h-[17px] w-[17px] border-l-2 border-t-2 border-[#7778e0]" />
+                  <span className="pointer-events-none absolute z-[2] right-6 top-6 h-[17px] w-[17px] border-r-2 border-t-2 border-[#7778e0]" />
+                  <span className="pointer-events-none absolute z-[2] bottom-6 left-6 h-[17px] w-[17px] border-b-2 border-l-2 border-[#7778e0]" />
+                  <span className="pointer-events-none absolute z-[2] bottom-6 right-6 h-[17px] w-[17px] border-b-2 border-r-2 border-[#7778e0]" />
                   <span
-                    className={`absolute top-[42%] h-px w-[70%] bg-gradient-to-r from-transparent via-[#5b5ce2] to-transparent ${
+                    className={`pointer-events-none absolute z-[2] top-[42%] h-px w-[70%] bg-gradient-to-r from-transparent via-[#5b5ce2] to-transparent ${
                       isCheckInPending
                         ? "opacity-0"
                         : isScanning

@@ -33,6 +33,10 @@
 }
 
 /* html5-qrcode: fill the preview region so decoding uses the full frame */
+#qr-reader {
+  z-index: 1;
+}
+
 #qr-reader video {
   width: 100% !important;
   height: 100% !important;
