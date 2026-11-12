@@ -27,20 +27,17 @@ const scanConfig = {
   },
 };
 
-async function resolveBackCamera(): Promise<
-  string | { facingMode: "environment" }
-> {
+async function findBackCameraId(): Promise<string | undefined> {
   try {
     const cameras = await Html5Qrcode.getCameras();
     const backCamera = cameras.find((camera) =>
       /back|rear|environment/i.test(camera.label),
     );
-    if (backCamera) return backCamera.id;
-    if (cameras.length > 0) return cameras[cameras.length - 1]!.id;
+    return backCamera?.id;
   } catch {
-    // getCameras() can fail before permission; facingMode is the portable fallback.
+    // Camera enumeration can fail before permission is granted.
   }
-  return { facingMode: "environment" };
+  return undefined;
 }
 
 function normalizeMemberId(raw: string) {
@@ -120,9 +117,8 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     scanner.current = nextScanner;
 
     try {
-      const camera = await resolveBackCamera();
       await nextScanner.start(
-        camera,
+        { facingMode: "environment" },
         scanConfig,
         async (decodedText) => {
           if (isProcessingScanRef.current) return;
@@ -138,9 +134,40 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
         () => undefined,
       );
     } catch (error) {
+      const errorName = error instanceof DOMException ? error.name : undefined;
+      const canTryCameraId =
+        errorName === "NotFoundError" || errorName === "OverconstrainedError";
+
+      if (canTryCameraId) {
+        const backCameraId = await findBackCameraId();
+        if (backCameraId) {
+          try {
+            nextScanner.clear();
+            await nextScanner.start(
+              backCameraId,
+              scanConfig,
+              async (decodedText) => {
+                if (isProcessingScanRef.current) return;
+                isProcessingScanRef.current = true;
+                await stopScanner();
+                setIsScanning(false);
+                try {
+                  await onScanRef.current(normalizeMemberId(decodedText));
+                } finally {
+                  isProcessingScanRef.current = false;
+                }
+              },
+              () => undefined,
+            );
+            return;
+          } catch {
+            // Report the original camera error below if the device-specific fallback fails.
+          }
+        }
+      }
+
       scanner.current = null;
       setIsScanning(false);
-      const errorName = error instanceof DOMException ? error.name : undefined;
       onMessage(
         errorName === "NotAllowedError"
           ? "Camera permission was denied. Allow camera access in browser settings."
