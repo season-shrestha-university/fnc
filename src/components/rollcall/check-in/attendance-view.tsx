@@ -11,12 +11,14 @@ import type { Member } from "@/components/rollcall/shared/types";
 export default function AttendanceView({
   activeEvent,
   members,
+  isDownloading = false,
   onBack,
   onDelete,
   onDownload,
 }: {
   activeEvent: string;
   members: Member[];
+  isDownloading?: boolean;
   onBack: () => void;
   onDelete: (checkInId: string) => Promise<void>;
   onDownload: () => void;
@@ -51,9 +53,10 @@ export default function AttendanceView({
         <Button
           className="h-10 w-full gap-2 bg-[#5b5ce2] px-5 text-sm font-bold text-white hover:bg-[#4748c5] sm:w-auto"
           onClick={onDownload}
+          loading={isDownloading}
         >
-          <Download className="size-4" />
-          Download Excel
+          {!isDownloading && <Download className="size-4" />}
+          {isDownloading ? "Downloading..." : "Download Excel"}
         </Button>
       </div>
       <div className="relative mb-4 w-full sm:w-56">
@@ -115,12 +118,11 @@ export function MemberRow({
         deletePendingRef.current = true;
         setOffset(-120);
         setIsDeleting(true);
-        void onDelete(member.checkInId)
-          .catch(() => {
-            deletePendingRef.current = false;
-            setIsDeleting(false);
-            setOffset(0);
-          });
+        void onDelete(member.checkInId).catch(() => {
+          deletePendingRef.current = false;
+          setIsDeleting(false);
+          setOffset(0);
+        });
       } else if (!deletePendingRef.current) {
         setOffset(0);
       }
@@ -145,7 +147,10 @@ export function MemberRow({
         aria-hidden={!isDeleting}
       >
         {isDeleting ? (
-          <Loader2 className="size-6 animate-spin" aria-label="Removing check-in" />
+          <Loader2
+            className="size-6 animate-spin"
+            aria-label="Removing check-in"
+          />
         ) : (
           "Delete"
         )}

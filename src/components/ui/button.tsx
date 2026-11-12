@@ -1,6 +1,11 @@
+"use client"
+
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
+import { Loader2 } from "lucide-react"
+import { useFormStatus } from "react-dom"
 
 const buttonVariants = cva(
   "group/button inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:not-aria-[haspopup]:translate-y-px disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
@@ -39,18 +44,53 @@ const buttonVariants = cva(
   }
 )
 
+export interface ButtonProps
+  extends ButtonPrimitive.Props,
+    VariantProps<typeof buttonVariants> {
+  loading?: boolean
+  pending?: boolean
+  loadingText?: React.ReactNode
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  loading,
+  pending,
+  loadingText,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonProps) {
+  const formStatus = useFormStatus()
+  const isFormPending = props.type === "submit" && formStatus.pending
+  const isPending = Boolean(loading ?? pending ?? isFormPending)
+  const isIcon = typeof size === "string" && size.startsWith("icon")
+
   return (
     <ButtonPrimitive
       data-slot="button"
+      data-loading={isPending ? "" : undefined}
+      data-pending={isPending ? "" : undefined}
+      aria-busy={isPending || undefined}
+      disabled={disabled || isPending}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {isPending && (
+        <Loader2
+          className="animate-spin"
+          aria-hidden="true"
+          data-slot="button-loader"
+        />
+      )}
+      {isPending && isIcon
+        ? null
+        : isPending && loadingText !== undefined
+          ? loadingText
+          : children}
+    </ButtonPrimitive>
   )
 }
 

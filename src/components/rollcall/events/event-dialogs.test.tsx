@@ -46,4 +46,26 @@ describe("EventDialogs", () => {
 
     expect(props.onDelete).toHaveBeenCalledOnce();
   });
+
+  it("shows spinning loader and disables button when isSaving is true", () => {
+    renderEventDialogs({ isSaving: true });
+
+    const submitButton = screen.getByRole("button", { name: /updating event/i });
+    expect(submitButton).toBeDisabled();
+    expect(submitButton).toHaveAttribute("aria-busy", "true");
+    expect(submitButton.querySelector(".animate-spin")).not.toBeNull();
+  });
+
+  it("shows spinning loader and disables delete button when isDeleting is true", () => {
+    renderEventDialogs({
+      isEventOpen: false,
+      isDeleteEventOpen: true,
+      isDeleting: true,
+    });
+
+    const deleteButton = screen.getByRole("button", { name: /deleting event/i });
+    expect(deleteButton).toBeDisabled();
+    expect(deleteButton).toHaveAttribute("aria-busy", "true");
+    expect(deleteButton.querySelector(".animate-spin")).not.toBeNull();
+  });
 });

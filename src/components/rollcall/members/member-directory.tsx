@@ -126,6 +126,8 @@ export default function MemberDirectory({
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isDownloadingQr, setIsDownloadingQr] = useState(false);
+  const [isPrintingQr, setIsPrintingQr] = useState(false);
   const [newMember, setNewMember] = useState({
     memberId: "",
     name: "",
@@ -180,31 +182,41 @@ export default function MemberDirectory({
 
   function downloadQr() {
     if (!qrDataUrl || !selectedMember) return;
-    const link = document.createElement("a");
-    link.href = qrDataUrl;
-    link.download = `${selectedMember.memberId}-qr.png`;
-    link.click();
-    onMessage(`QR code downloaded for ${selectedMember.name}`, "success");
+    setIsDownloadingQr(true);
+    try {
+      const link = document.createElement("a");
+      link.href = qrDataUrl;
+      link.download = `${selectedMember.memberId}-qr.png`;
+      link.click();
+      onMessage(`QR code downloaded for ${selectedMember.name}`, "success");
+    } finally {
+      setIsDownloadingQr(false);
+    }
   }
 
   function printQr() {
     if (!qrDataUrl || !selectedMember) return;
-    const printWindow = window.open("", "_blank", "width=500,height=600");
-    if (!printWindow) {
-      onMessage("Allow pop-ups to print a QR code", "error");
-      return;
+    setIsPrintingQr(true);
+    try {
+      const printWindow = window.open("", "_blank", "width=500,height=600");
+      if (!printWindow) {
+        onMessage("Allow pop-ups to print a QR code", "error");
+        return;
+      }
+      printWindow.document.write(`
+        <title>${selectedMember.name} member QR</title>
+        <main style="font-family: sans-serif; text-align: center; padding: 32px">
+          <h1>${selectedMember.name}</h1>
+          <img src="${qrDataUrl}" alt="QR code for ${selectedMember.memberId}" />
+          <p>${selectedMember.memberId}</p>
+        </main>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+    } finally {
+      setIsPrintingQr(false);
     }
-    printWindow.document.write(`
-      <title>${selectedMember.name} member QR</title>
-      <main style="font-family: sans-serif; text-align: center; padding: 32px">
-        <h1>${selectedMember.name}</h1>
-        <img src="${qrDataUrl}" alt="QR code for ${selectedMember.memberId}" />
-        <p>${selectedMember.memberId}</p>
-      </main>
-    `);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
   }
 
   return (
@@ -349,10 +361,11 @@ export default function MemberDirectory({
                     type="button"
                     variant="outline"
                     onClick={() => setIsCreateOpen(false)}
+                    disabled={isCreating}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isCreating}>
+                  <Button type="submit" loading={isCreating}>
                     {isCreating ? "Creating..." : "Create & generate QR"}
                   </Button>
                 </div>
@@ -389,17 +402,19 @@ export default function MemberDirectory({
                 <Button
                   variant="outline"
                   onClick={downloadQr}
-                  disabled={!qrDataUrl}
+                  disabled={!qrDataUrl || isDownloadingQr}
+                  loading={isDownloadingQr}
                 >
-                  <Download className="size-4" />
+                  {!isDownloadingQr && <Download className="size-4" />}
                   Download
                 </Button>
                 <Button
                   variant="outline"
                   onClick={printQr}
-                  disabled={!qrDataUrl}
+                  disabled={!qrDataUrl || isPrintingQr}
+                  loading={isPrintingQr}
                 >
-                  <Printer className="size-4" />
+                  {!isPrintingQr && <Printer className="size-4" />}
                   Print
                 </Button>
               </div>

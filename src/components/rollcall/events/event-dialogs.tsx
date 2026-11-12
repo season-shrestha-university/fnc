@@ -19,6 +19,8 @@ export default function EventDialogs({
   trackedFields,
   isEventOpen,
   isDeleteEventOpen,
+  isSaving = false,
+  isDeleting = false,
   onEventOpenChange,
   onDeleteOpenChange,
   onEventNameChange,
@@ -32,6 +34,8 @@ export default function EventDialogs({
   trackedFields: string[];
   isEventOpen: boolean;
   isDeleteEventOpen: boolean;
+  isSaving?: boolean;
+  isDeleting?: boolean;
   onEventOpenChange: (open: boolean) => void;
   onDeleteOpenChange: (open: boolean) => void;
   onEventNameChange: (name: string) => void;
@@ -105,6 +109,7 @@ export default function EventDialogs({
                 onClick={() => {
                   onDeleteRequest();
                 }}
+                disabled={isSaving}
               >
                 Delete event
               </Button>
@@ -112,9 +117,16 @@ export default function EventDialogs({
             <Button
               type="submit"
               onClick={onSave}
+              loading={isSaving}
               className="w-full bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
             >
-              {activeEvent ? "Update event" : "Create event"}
+              {isSaving
+                ? activeEvent
+                  ? "Updating event..."
+                  : "Creating event..."
+                : activeEvent
+                  ? "Update event"
+                  : "Create event"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -134,6 +146,7 @@ export default function EventDialogs({
               type="button"
               variant="outline"
               onClick={() => onDeleteOpenChange(false)}
+              disabled={isDeleting}
             >
               Cancel
             </Button>
@@ -141,8 +154,9 @@ export default function EventDialogs({
               type="button"
               className="bg-[#e76b60] text-white hover:bg-[#c94d42]"
               onClick={onDelete}
+              loading={isDeleting}
             >
-              Delete event
+              {isDeleting ? "Deleting event..." : "Delete event"}
             </Button>
           </DialogFooter>
         </DialogContent>

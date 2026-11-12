@@ -126,15 +126,26 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const showToast = useToast();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function signOut() {
-    const { error } = await getSupabaseBrowserClient().auth.signOut();
-    if (error) {
-      showToast(error.message, "error");
-      return;
+    setIsSigningOut(true);
+    try {
+      const { error } = await getSupabaseBrowserClient().auth.signOut();
+      if (error) {
+        showToast(error.message, "error");
+        setIsSigningOut(false);
+        return;
+      }
+      showToast("Signed out successfully", "success");
+      router.replace("/login");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Unable to sign out",
+        "error",
+      );
+      setIsSigningOut(false);
     }
-    showToast("Signed out successfully", "success");
-    router.replace("/login");
   }
 
   return (
@@ -220,9 +231,12 @@ export default function AppShell({ children }: { children: ReactNode }) {
               className="gap-2 text-[#77777e]"
               onClick={() => void signOut()}
               variant="ghost"
+              loading={isSigningOut}
             >
-              <LogOut className="size-4" />
-              <span className="hidden sm:inline">Sign out</span>
+              {!isSigningOut && <LogOut className="size-4" />}
+              <span className="hidden sm:inline">
+                {isSigningOut ? "Signing out..." : "Sign out"}
+              </span>
             </Button>
           </header>
           <main>{children}</main>

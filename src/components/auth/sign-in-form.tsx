@@ -88,7 +88,11 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
               {error}
             </p>
           )}
-          <Button className="mt-2 h-11 justify-center gap-2" disabled={isSubmitting} type="submit">
+          <Button
+            className="mt-2 h-11 justify-center gap-2"
+            loading={isSubmitting}
+            type="submit"
+          >
             {isSubmitting ? "Signing in..." : "Sign in"}
             {!isSubmitting && <ArrowRight className="size-4" />}
           </Button>

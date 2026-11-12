@@ -85,6 +85,9 @@ export default function CheckInView({
     event?.trackedFields ?? defaultTrackedFields,
   );
   const [isCheckInPending, setIsCheckInPending] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSavingEvent, setIsSavingEvent] = useState(false);
+  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
   const checkInPendingRef = useRef(false);
 
   // Server data is the source of truth: adopt it whenever the route re-renders
@@ -167,6 +170,7 @@ export default function CheckInView({
   }
 
   async function downloadExcel() {
+    setIsDownloading(true);
     let response: Response;
     try {
       response = await fetch("/api/export/prototype", {
@@ -182,6 +186,7 @@ export default function CheckInView({
         }),
       });
     } catch (error) {
+      setIsDownloading(false);
       showToast(
         error instanceof Error
           ? error.message
@@ -192,6 +197,7 @@ export default function CheckInView({
     }
 
     if (!response.ok) {
+      setIsDownloading(false);
       showToast("Unable to download attendance", "error");
       return;
     }
@@ -203,6 +209,7 @@ export default function CheckInView({
     link.download = `${activeEvent.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-attendance.xlsx`;
     link.click();
     URL.revokeObjectURL(url);
+    setIsDownloading(false);
     showToast("Attendance Excel file downloaded", "success");
   }
 
@@ -212,6 +219,7 @@ export default function CheckInView({
       showToast("Add an event name to continue");
       return;
     }
+    setIsSavingEvent(true);
     try {
       const savedId = await saveEvent({
         id: eventId || undefined,
@@ -236,11 +244,14 @@ export default function CheckInView({
         error instanceof Error ? error.message : "Unable to save event",
         "error",
       );
+    } finally {
+      setIsSavingEvent(false);
     }
   }
 
   async function deleteEvent() {
     if (!eventId) return;
+    setIsDeletingEvent(true);
     try {
       await deleteEventAction(eventId);
       setCurrentEvent(null);
@@ -255,6 +266,8 @@ export default function CheckInView({
         error instanceof Error ? error.message : "Unable to delete event",
         "error",
       );
+    } finally {
+      setIsDeletingEvent(false);
     }
   }
 
@@ -296,6 +309,7 @@ export default function CheckInView({
         <AttendanceView
           activeEvent={activeEvent}
           members={members}
+          isDownloading={isDownloading}
           onBack={() => setIsAttendanceOpen(false)}
           onDelete={deleteMember}
           onDownload={downloadExcel}
@@ -427,8 +441,9 @@ export default function CheckInView({
                   className="mt-[18px] h-auto w-full bg-[#5b5ce2] py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(91,92,226,.2)] hover:bg-[#4748c5]"
                   onClick={startScan}
                   disabled={isScanning || isCheckInPending}
+                  loading={isCheckInPending}
                 >
-                  <QrCode className="size-4" />
+                  {!isCheckInPending && <QrCode className="size-4" />}
                   {isCheckInPending
                     ? "Checking in..."
                     : isScanning
@@ -578,6 +593,8 @@ export default function CheckInView({
         trackedFields={trackedFields}
         isEventOpen={isEventOpen}
         isDeleteEventOpen={isDeleteEventOpen}
+        isSaving={isSavingEvent}
+        isDeleting={isDeletingEvent}
         onEventOpenChange={setIsEventOpen}
         onDeleteOpenChange={setIsDeleteEventOpen}
         onEventNameChange={setEventName}

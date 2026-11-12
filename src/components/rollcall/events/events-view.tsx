@@ -35,6 +35,7 @@ export default function EventsView({
   const [isEventOpen, setIsEventOpen] = useState(false);
   const [eventName, setEventName] = useState("");
   const [trackedFields, setTrackedFields] = useState(defaultTrackedFields);
+  const [isSaving, setIsSaving] = useState(false);
 
   function openCreateDialog() {
     setEventName("");
@@ -48,6 +49,7 @@ export default function EventsView({
       showToast("Add an event name to continue");
       return;
     }
+    setIsSaving(true);
     try {
       await saveEvent({ name: nextEventName, trackedFields });
       setIsEventOpen(false);
@@ -57,6 +59,8 @@ export default function EventsView({
         error instanceof Error ? error.message : "Unable to save event",
         "error",
       );
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -89,6 +93,7 @@ export default function EventsView({
         trackedFields={trackedFields}
         isEventOpen={isEventOpen}
         isDeleteEventOpen={false}
+        isSaving={isSaving}
         onEventOpenChange={setIsEventOpen}
         onDeleteOpenChange={() => undefined}
         onEventNameChange={setEventName}
