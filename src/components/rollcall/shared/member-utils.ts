@@ -7,6 +7,18 @@ const avatarColors = [
   "bg-[#dcedf8] text-[#377798]",
 ];
 
+export const trackedFieldOptions = [
+  "Name",
+  "Member ID",
+  "Email",
+  "Phone",
+  "Address",
+  "Date of birth",
+  "Photo",
+] as const;
+
+export const requiredTrackedFields = ["Name", "Member ID"] as const;
+
 export const defaultTrackedFields = ["Name", "Member ID"];
 
 export function getAvatarColor(name: string) {
@@ -32,7 +44,15 @@ export function formatCheckInDate(
   return member.createdDate ?? member.date;
 }
 
-export function toMember(checkIn: DashboardData["checkIns"][number]): Member {
+export function toMember(
+  checkIn: DashboardData["checkIns"][number] & {
+    email?: string;
+    phone?: string;
+    address?: string;
+    dob?: string;
+    pictureUrl?: string;
+  },
+): Member {
   return {
     checkInId: checkIn.checkInId,
     id: checkIn.id,
@@ -41,5 +61,10 @@ export function toMember(checkIn: DashboardData["checkIns"][number]): Member {
     date: "",
     createdDate: checkIn.createdDate,
     color: getAvatarColor(checkIn.name),
+    email: checkIn.email,
+    phone: checkIn.phone,
+    address: checkIn.address,
+    dob: checkIn.dob,
+    pictureUrl: checkIn.pictureUrl,
   };
 }

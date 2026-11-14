@@ -10,6 +10,7 @@ export type DashboardData = {
   event: {
     id: string;
     name: string;
+    eventDate: string;
     trackedFields: string[];
   } | null;
   memberCount: number;
@@ -17,6 +18,11 @@ export type DashboardData = {
     checkInId: string;
     id: string;
     name: string;
+    email: string;
+    phone: string;
+    address: string;
+    dob: string;
+    pictureUrl: string;
     createdDate: string;
   }>;
 };
@@ -34,11 +40,28 @@ export type DirectoryMember = {
   id: string;
   memberId: string;
   name: string;
+  email: string;
+  phone: string;
+  address: string;
+  dob: string;
+  pictureUrl: string;
 };
 
 export type CreateMemberInput = {
   memberId?: string;
   name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  pictureUrl?: string;
+};
+
+export type UpdateMemberInput = {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
   address?: string;
   dob?: string;
   pictureUrl?: string;
@@ -70,6 +93,31 @@ async function getAuthenticatedSupabase() {
   return supabase;
 }
 
+function mapDirectoryMember(member: {
+  id: string;
+  member_id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  address: string | null;
+  dob: string | null;
+  picture_url: string | null;
+}): DirectoryMember {
+  return {
+    id: member.id,
+    memberId: member.member_id,
+    name: member.name,
+    email: member.email ?? "",
+    phone: member.phone ?? "",
+    address: member.address ?? "",
+    dob: member.dob ?? "",
+    pictureUrl: member.picture_url ?? "",
+  };
+}
+
+const memberSelectColumns =
+  "id, member_id, name, email, phone, address, dob, picture_url";
+
 export async function getDashboardData(
   eventId?: string,
 ): Promise<DashboardData> {
@@ -78,7 +126,9 @@ export async function getDashboardData(
   cacheLife({ stale: 60 });
 
   const supabase = await getAuthenticatedSupabase();
-  let eventQuery = supabase.from("events").select("id, name, tracked_fields");
+  let eventQuery = supabase
+    .from("events")
+    .select("id, name, event_date, tracked_fields");
   if (eventId) {
     eventQuery = eventQuery.eq("id", eventId);
   } else {
@@ -100,16 +150,15 @@ export async function getDashboardData(
   if (checkInsError) throw new Error(getErrorMessage(checkInsError));
 
   const memberIds = (checkIns ?? []).map((checkIn) => checkIn.member_id);
-  const [{ data: members, error: membersError }, { count: memberCount, error: memberCountError }] =
-    await Promise.all([
-      memberIds.length
-        ? supabase
-            .from("members")
-            .select("id, member_id, name")
-            .in("id", memberIds)
-        : Promise.resolve({ data: [], error: null }),
-      supabase.from("members").select("id", { count: "exact", head: true }),
-    ]);
+  const [
+    { data: members, error: membersError },
+    { count: memberCount, error: memberCountError },
+  ] = await Promise.all([
+    memberIds.length
+      ? supabase.from("members").select(memberSelectColumns).in("id", memberIds)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("members").select("id", { count: "exact", head: true }),
+  ]);
   if (membersError) throw new Error(getErrorMessage(membersError));
   if (memberCountError) throw new Error(getErrorMessage(memberCountError));
 
@@ -121,6 +170,7 @@ export async function getDashboardData(
     event: {
       id: event.id,
       name: event.name,
+      eventDate: toDateOnly(event.event_date),
       trackedFields: Array.isArray(event.tracked_fields)
         ? event.tracked_fields.filter(
             (field): field is string => typeof field === "string",
@@ -135,6 +185,11 @@ export async function getDashboardData(
         checkInId: checkIn.id,
         id: member.member_id,
         name: member.name,
+        email: member.email ?? "",
+        phone: member.phone ?? "",
+        address: member.address ?? "",
+        dob: member.dob ?? "",
+        pictureUrl: member.picture_url ?? "",
         createdDate: toDateOnly(checkIn.created_at),
       };
     }),
@@ -195,16 +250,12 @@ export async function getMembers(): Promise<DirectoryMember[]> {
 
   const { data, error } = await (await getAuthenticatedSupabase())
     .from("members")
-    .select("id, member_id, name")
+    .select(memberSelectColumns)
     .order("name", { ascending: true });
 
   if (error) throw new Error(getErrorMessage(error));
 
-  return (data ?? []).map((member) => ({
-    id: member.id,
-    memberId: member.member_id,
-    name: member.name,
-  }));
+  return (data ?? []).map(mapDirectoryMember);
 }
 
 export async function createMember(
@@ -222,11 +273,13 @@ export async function createMember(
     .insert({
       member_id: memberId,
       name,
+      email: input.email?.trim() || "",
+      phone: input.phone?.trim() || "",
       address: input.address?.trim() || "",
       dob: input.dob || null,
       picture_url: input.pictureUrl?.trim() || "",
     })
-    .select("id, member_id, name")
+    .select(memberSelectColumns)
     .single();
 
   if (error) {
@@ -237,23 +290,65 @@ export async function createMember(
   }
 
   invalidateWorkspaceData();
-  return { id: data.id, memberId: data.member_id, name: data.name };
+  return mapDirectoryMember(data);
+}
+
+export async function updateMember(
+  input: UpdateMemberInput,
+): Promise<DirectoryMember> {
+  if (!input.id) throw new Error("Member ID is required");
+  const name = input.name.trim();
+  if (!name) throw new Error("Member name is required");
+
+  const supabase = await getAuthenticatedSupabase();
+  const { data, error } = await supabase
+    .from("members")
+    .update({
+      name,
+      email: input.email?.trim() || "",
+      phone: input.phone?.trim() || "",
+      address: input.address?.trim() || "",
+      dob: input.dob || null,
+      picture_url: input.pictureUrl?.trim() || "",
+    })
+    .eq("id", input.id)
+    .select(memberSelectColumns)
+    .single();
+
+  if (error) throw new Error(getErrorMessage(error));
+
+  invalidateWorkspaceData();
+  return mapDirectoryMember(data);
+}
+
+export async function deleteMember(id: string) {
+  if (!id) throw new Error("Member ID is required");
+
+  const { error } = await (await getAuthenticatedSupabase())
+    .from("members")
+    .delete()
+    .eq("id", id);
+  if (error) throw new Error(getErrorMessage(error));
+  invalidateWorkspaceData();
 }
 
 export async function saveEvent(input: {
   id?: string;
   name: string;
+  eventDate?: string;
   trackedFields: string[];
 }) {
   const name = input.name.trim();
   if (!name) throw new Error("Event name is required");
 
+  const eventDate = input.eventDate?.trim() || getCurrentDate();
   const supabase = await getAuthenticatedSupabase();
   if (input.id) {
     const { error } = await supabase
       .from("events")
       .update({
         name,
+        event_date: eventDate,
         tracked_fields: input.trackedFields,
       })
       .eq("id", input.id);
@@ -266,7 +361,7 @@ export async function saveEvent(input: {
   const { error } = await supabase.from("events").insert({
     id,
     name,
-    event_date: getCurrentDate(),
+    event_date: eventDate,
     tracked_fields: input.trackedFields,
   });
   if (error) throw new Error(getErrorMessage(error));
@@ -291,7 +386,7 @@ export async function checkInMember(eventId: string, memberId: string) {
   const supabase = await getAuthenticatedSupabase();
   const { data: member, error: memberError } = await supabase
     .from("members")
-    .select("id, member_id, name")
+    .select(memberSelectColumns)
     .eq("member_id", memberId.trim())
     .maybeSingle();
   if (memberError) throw new Error(getErrorMessage(memberError));
@@ -318,6 +413,11 @@ export async function checkInMember(eventId: string, memberId: string) {
     checkInId: checkIn.id,
     id: member.member_id,
     name: member.name,
+    email: member.email ?? "",
+    phone: member.phone ?? "",
+    address: member.address ?? "",
+    dob: member.dob ?? "",
+    pictureUrl: member.picture_url ?? "",
     createdDate: toDateOnly(checkIn.created_at),
   };
 }

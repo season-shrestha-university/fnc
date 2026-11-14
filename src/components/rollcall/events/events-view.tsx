@@ -9,6 +9,7 @@ import { EventsChrome, EventsGrid } from "@/components/rollcall/events/events-li
 import { useToast } from "@/components/rollcall/layout/toast-provider";
 import { defaultTrackedFields } from "@/components/rollcall/shared/member-utils";
 import { EventsGridSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
+import { getCurrentDate } from "@/lib/date";
 
 function ResolvedEventsGrid({
   eventsPromise,
@@ -34,11 +35,13 @@ export default function EventsView({
   const [query, setQuery] = useState("");
   const [isEventOpen, setIsEventOpen] = useState(false);
   const [eventName, setEventName] = useState("");
+  const [eventDate, setEventDate] = useState("");
   const [trackedFields, setTrackedFields] = useState(defaultTrackedFields);
   const [isSaving, setIsSaving] = useState(false);
 
   function openCreateDialog() {
     setEventName("");
+    setEventDate(getCurrentDate());
     setTrackedFields(defaultTrackedFields);
     setIsEventOpen(true);
   }
@@ -51,7 +54,7 @@ export default function EventsView({
     }
     setIsSaving(true);
     try {
-      await saveEvent({ name: nextEventName, trackedFields });
+      await saveEvent({ name: nextEventName, eventDate, trackedFields });
       setIsEventOpen(false);
       showToast("Event created and ready for check-in", "success");
     } catch (error) {
@@ -90,6 +93,7 @@ export default function EventsView({
       <EventDialogs
         activeEvent=""
         eventName={eventName}
+        eventDate={eventDate}
         trackedFields={trackedFields}
         isEventOpen={isEventOpen}
         isDeleteEventOpen={false}
@@ -97,6 +101,7 @@ export default function EventsView({
         onEventOpenChange={setIsEventOpen}
         onDeleteOpenChange={() => undefined}
         onEventNameChange={setEventName}
+        onEventDateChange={setEventDate}
         onTrackedFieldsChange={setTrackedFields}
         onSave={createEvent}
         onDeleteRequest={() => undefined}

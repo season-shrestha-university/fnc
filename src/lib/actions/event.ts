@@ -9,6 +9,8 @@ import { getCurrentDate } from "@/lib/date";
 const trackedFieldValues: TrackedField[] = [
   "member_id",
   "name",
+  "email",
+  "phone",
   "address",
   "dob",
   "picture_url",

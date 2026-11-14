@@ -8,14 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  requiredTrackedFields,
+  trackedFieldOptions,
+} from "@/components/rollcall/shared/member-utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-const trackedFieldOptions = ["Name", "Member ID", "Address", "Date of birth"];
 
 export default function EventDialogs({
   activeEvent,
   eventName,
+  eventDate = "",
   trackedFields,
   isEventOpen,
   isDeleteEventOpen,
@@ -24,6 +27,7 @@ export default function EventDialogs({
   onEventOpenChange,
   onDeleteOpenChange,
   onEventNameChange,
+  onEventDateChange,
   onTrackedFieldsChange,
   onSave,
   onDeleteRequest,
@@ -31,6 +35,7 @@ export default function EventDialogs({
 }: {
   activeEvent: string;
   eventName: string;
+  eventDate?: string;
   trackedFields: string[];
   isEventOpen: boolean;
   isDeleteEventOpen: boolean;
@@ -39,6 +44,7 @@ export default function EventDialogs({
   onEventOpenChange: (open: boolean) => void;
   onDeleteOpenChange: (open: boolean) => void;
   onEventNameChange: (name: string) => void;
+  onEventDateChange?: (date: string) => void;
   onTrackedFieldsChange: (fields: string[]) => void;
   onSave: () => void;
   onDeleteRequest: () => void;
@@ -70,34 +76,45 @@ export default function EventDialogs({
             </label>
             <label className="grid gap-2 text-sm font-semibold">
               Date
-              <Input type="date" defaultValue="2024-06-18" />
+              <Input
+                type="date"
+                value={eventDate}
+                onChange={(event) => onEventDateChange?.(event.target.value)}
+              />
             </label>
             <fieldset className="grid gap-2">
               <legend className="mb-1 text-sm font-semibold">
                 Track for each member
               </legend>
-              {trackedFieldOptions.map((field, index) => (
-                <label key={field} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={trackedFields.includes(field)}
-                    onChange={() =>
-                      onTrackedFieldsChange(
-                        trackedFields.includes(field)
-                          ? trackedFields.filter((value) => value !== field)
-                          : [...trackedFields, field],
-                      )
-                    }
-                    className="size-4 accent-[#5b5ce2]"
-                  />
-                  {field}
-                  {index < 2 && (
-                    <span className="ml-auto text-sm text-[#85858c]">
-                      Required
-                    </span>
-                  )}
-                </label>
-              ))}
+              {trackedFieldOptions.map((field) => {
+                const isRequired = (
+                  requiredTrackedFields as readonly string[]
+                ).includes(field);
+                return (
+                  <label key={field} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={isRequired || trackedFields.includes(field)}
+                      disabled={isRequired}
+                      onChange={() => {
+                        if (isRequired) return;
+                        onTrackedFieldsChange(
+                          trackedFields.includes(field)
+                            ? trackedFields.filter((value) => value !== field)
+                            : [...trackedFields, field],
+                        );
+                      }}
+                      className="size-4 accent-[#5b5ce2]"
+                    />
+                    {field}
+                    {isRequired && (
+                      <span className="ml-auto text-sm text-[#85858c]">
+                        Required
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
             </fieldset>
           </div>
           <DialogFooter>

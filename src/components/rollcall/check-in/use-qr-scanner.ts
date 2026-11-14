@@ -2,6 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
+import {
+  cameraErrorMessage,
+  checkCameraAvailability,
+  openCameraStream,
+  stopMediaStream,
+} from "@/components/rollcall/shared/camera-utils";
 
 type UseQrScannerOptions = {
   onScan: (memberId: string) => void | Promise<void>;
@@ -63,35 +69,6 @@ function loadDecoder(): Promise<QrDecoder> {
   return decoderPromise;
 }
 
-async function openCamera(): Promise<MediaStream> {
-  try {
-    return await navigator.mediaDevices.getUserMedia(cameraConstraints);
-  } catch (error) {
-    const errorName = error instanceof DOMException ? error.name : undefined;
-    if (errorName !== "OverconstrainedError" && errorName !== "NotFoundError") {
-      throw error;
-    }
-    // Fall back to whatever camera the device offers.
-    return navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-  }
-}
-
-function cameraErrorMessage(error: unknown) {
-  const errorName = error instanceof DOMException ? error.name : undefined;
-  switch (errorName) {
-    case "NotAllowedError":
-      return "Camera permission was denied. Allow camera access in browser settings.";
-    case "NotFoundError":
-      return "No camera was found on this device.";
-    case "NotReadableError":
-      return "The camera is in use by another app. Close it and try again.";
-    case "OverconstrainedError":
-      return "Could not start the camera with these settings. Try again or use manual entry.";
-    default:
-      return "Unable to access the camera. Check HTTPS and browser permissions.";
-  }
-}
-
 function normalizeMemberId(raw: string) {
   return raw.replace(/\u0000/g, "").trim();
 }
@@ -116,13 +93,8 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
       window.clearTimeout(scanTimerRef.current);
       scanTimerRef.current = null;
     }
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+    stopMediaStream(streamRef.current, videoRef.current);
     streamRef.current = null;
-    const video = videoRef.current;
-    if (video) {
-      video.pause();
-      video.srcObject = null;
-    }
   }, []);
 
   const submitScan = useCallback(
@@ -201,15 +173,9 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
 
   async function startScan() {
     if (isScanning || isProcessingScanRef.current) return;
-    if (!window.isSecureContext) {
-      onMessage(
-        "Camera access requires HTTPS. Open this app over HTTPS on your phone.",
-        "error",
-      );
-      return;
-    }
-    if (!navigator.mediaDevices?.getUserMedia) {
-      onMessage("This browser does not support camera access.", "error");
+    const availabilityError = checkCameraAvailability();
+    if (availabilityError) {
+      onMessage(availabilityError, "error");
       return;
     }
 
@@ -222,7 +188,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     decoderLoad.catch(() => undefined);
 
     try {
-      const stream = await openCamera();
+      const stream = await openCameraStream(cameraConstraints);
       if (session !== sessionRef.current) {
         stream.getTracks().forEach((track) => track.stop());
         return;

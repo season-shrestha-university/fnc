@@ -8,4 +8,9 @@ export type Member = {
   /** Calendar date for persisted check-ins. */
   createdDate?: string;
   color: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  dob?: string;
+  pictureUrl?: string;
 };

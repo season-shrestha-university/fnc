@@ -1,48 +1,123 @@
 "use client";
 
-import { Suspense, use, useEffect, useState, type FormEvent } from "react";
+import {
+  Suspense,
+  use,
+  useEffect,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
 import {
   ArrowLeft,
+  Camera,
   Download,
+  Pencil,
   Plus,
   Printer,
   QrCode,
   Search,
+  Trash2,
 } from "lucide-react";
 
 import {
   createMember,
+  deleteMember,
+  updateMember,
   type DirectoryMember,
 } from "@/app/actions";
+import { Avatar } from "@/components/rollcall/check-in/attendance-view";
+import { useToast } from "@/components/rollcall/layout/toast-provider";
+import { useMemberCamera } from "@/components/rollcall/members/use-member-camera";
+import {
+  getAvatarColor,
+  getInitials,
+} from "@/components/rollcall/shared/member-utils";
+import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/components/rollcall/layout/toast-provider";
-import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+
+type MemberFormState = {
+  memberId: string;
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  dob: string;
+  pictureUrl: string;
+};
+
+const emptyMemberForm: MemberFormState = {
+  memberId: "",
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  dob: "",
+  pictureUrl: "",
+};
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+async function uploadMemberPhoto(file: File): Promise<string> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Please select an image file");
+  }
+  if (file.size > MAX_PHOTO_BYTES) {
+    throw new Error("Member photo must be 5 MB or smaller");
+  }
+
+  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const path = `${crypto.randomUUID()}.${extension}`;
+  const supabase = getSupabaseBrowserClient();
+  const { error } = await supabase.storage
+    .from("member-photos")
+    .upload(path, file, { upsert: true });
+
+  if (error) {
+    throw new Error(error.message || "Unable to upload member photo");
+  }
+
+  const { data } = supabase.storage.from("member-photos").getPublicUrl(path);
+  return data.publicUrl;
+}
 
 function MembersListContent({
   initialMembers,
   search,
   optimisticMembers,
+  deletedMemberIds,
   onSelectMember,
+  onEditMember,
+  onDeleteMember,
 }: {
   initialMembers: DirectoryMember[];
   search: string;
   optimisticMembers: DirectoryMember[];
+  deletedMemberIds: string[];
   onSelectMember: (member: DirectoryMember) => void;
+  onEditMember: (member: DirectoryMember) => void;
+  onDeleteMember: (member: DirectoryMember) => void;
 }) {
+  const deletedSet = new Set(deletedMemberIds);
   const mergedMap = new Map<string, DirectoryMember>();
-  for (const member of initialMembers) mergedMap.set(member.id, member);
-  for (const member of optimisticMembers) mergedMap.set(member.id, member);
+  for (const member of initialMembers) {
+    if (!deletedSet.has(member.id)) mergedMap.set(member.id, member);
+  }
+  for (const member of optimisticMembers) {
+    if (!deletedSet.has(member.id)) mergedMap.set(member.id, member);
+  }
   const members = Array.from(mergedMap.values()).sort((a, b) =>
     a.name.localeCompare(b.name),
   );
 
   const visibleMembers = members.filter((member) =>
-    `${member.name} ${member.memberId}`
+    `${member.name} ${member.memberId} ${member.email} ${member.phone}`
       .toLowerCase()
       .includes(search.toLowerCase()),
   );
@@ -63,25 +138,65 @@ function MembersListContent({
 
   return (
     <div className="grid gap-3">
-      {visibleMembers.map((member) => (
-        <Card key={member.id}>
-          <CardContent className="flex items-center justify-between gap-4 p-4">
-            <div className="min-w-0">
-              <p className="truncate font-bold">{member.name}</p>
-              <p className="mt-1 truncate font-mono text-xs text-[#85858c]">
-                {member.memberId}
-              </p>
-            </div>
-            <Button
-              className="gap-2 bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
-              onClick={() => onSelectMember(member)}
-            >
-              <QrCode className="size-4" />
-              Generate QR
-            </Button>
-          </CardContent>
-        </Card>
-      ))}
+      {visibleMembers.map((member) => {
+        const contactSummary = [member.email, member.phone]
+          .filter(Boolean)
+          .join(" · ");
+        return (
+          <Card key={member.id}>
+            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 items-center gap-3.5">
+                <Avatar
+                  initials={getInitials(member.name)}
+                  color={getAvatarColor(member.name)}
+                  pictureUrl={member.pictureUrl || undefined}
+                  alt={member.name}
+                  size="lg"
+                />
+                <div className="min-w-0">
+                  <p className="truncate font-bold">{member.name}</p>
+                  <p className="mt-0.5 truncate font-mono text-xs text-[#85858c]">
+                    {member.memberId}
+                  </p>
+                  {contactSummary && (
+                    <p className="mt-0.5 truncate text-xs text-[#85858c]">
+                      {contactSummary}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  aria-label={`Edit ${member.name}`}
+                  onClick={() => onEditMember(member)}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  className="text-[#e76b60] hover:bg-[#fbe9e8] hover:text-[#c94d42]"
+                  aria-label={`Delete ${member.name}`}
+                  onClick={() => onDeleteMember(member)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+                <Button
+                  className="gap-2 bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
+                  onClick={() => onSelectMember(member)}
+                >
+                  <QrCode className="size-4" />
+                  Generate QR
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -90,12 +205,18 @@ function ResolvedMembersList({
   membersPromise,
   search,
   optimisticMembers,
+  deletedMemberIds,
   onSelectMember,
+  onEditMember,
+  onDeleteMember,
 }: {
   membersPromise: Promise<DirectoryMember[]>;
   search: string;
   optimisticMembers: DirectoryMember[];
+  deletedMemberIds: string[];
   onSelectMember: (member: DirectoryMember) => void;
+  onEditMember: (member: DirectoryMember) => void;
+  onDeleteMember: (member: DirectoryMember) => void;
 }) {
   const initialMembers = use(membersPromise);
   return (
@@ -103,7 +224,10 @@ function ResolvedMembersList({
       initialMembers={initialMembers}
       search={search}
       optimisticMembers={optimisticMembers}
+      deletedMemberIds={deletedMemberIds}
       onSelectMember={onSelectMember}
+      onEditMember={onEditMember}
+      onDeleteMember={onDeleteMember}
     />
   );
 }
@@ -119,22 +243,27 @@ export default function MemberDirectory({
   const [optimisticMembers, setOptimisticMembers] = useState<DirectoryMember[]>(
     [],
   );
+  const [deletedMemberIds, setDeletedMemberIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(
     null,
   );
   const [qrDataUrl, setQrDataUrl] = useState("");
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState<DirectoryMember | null>(
+    null,
+  );
+  const [deletingMember, setDeletingMember] = useState<DirectoryMember | null>(
+    null,
+  );
+  const [memberForm, setMemberForm] =
+    useState<MemberFormState>(emptyMemberForm);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloadingQr, setIsDownloadingQr] = useState(false);
   const [isPrintingQr, setIsPrintingQr] = useState(false);
-  const [newMember, setNewMember] = useState({
-    memberId: "",
-    name: "",
-    address: "",
-    dob: "",
-    pictureUrl: "",
-  });
 
   useEffect(() => {
     if (!selectedMember) return;
@@ -149,34 +278,162 @@ export default function MemberDirectory({
       .catch(() => onMessage("Unable to generate this member QR code", "error"));
   }, [onMessage, selectedMember]);
 
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
+
+  function applyPhotoFile(file: File | null) {
+    if (photoPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setPhotoFile(file);
+    setPhotoPreviewUrl(
+      file ? URL.createObjectURL(file) : memberForm.pictureUrl,
+    );
+  }
+
+  const {
+    videoRef,
+    isCameraOpen,
+    isStartingCamera,
+    startCamera,
+    stopCamera,
+    capturePhoto,
+  } = useMemberCamera({
+    onCapture: applyPhotoFile,
+    onMessage,
+  });
+
   function selectMember(member: DirectoryMember) {
     setQrDataUrl("");
     setSelectedMember(member);
   }
 
-  async function handleCreateMember(event: FormEvent<HTMLFormElement>) {
+  function closeFormDialog() {
+    stopCamera();
+    setIsFormOpen(false);
+    setEditingMember(null);
+  }
+
+  function openCreateDialog() {
+    stopCamera();
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+    setPhotoFile(null);
+    setPhotoPreviewUrl("");
+    setIsFormOpen(true);
+  }
+
+  function openEditDialog(member: DirectoryMember) {
+    stopCamera();
+    setEditingMember(member);
+    setMemberForm({
+      memberId: member.memberId,
+      name: member.name,
+      email: member.email,
+      phone: member.phone,
+      address: member.address,
+      dob: member.dob,
+      pictureUrl: member.pictureUrl,
+    });
+    setPhotoFile(null);
+    setPhotoPreviewUrl(member.pictureUrl);
+    setIsFormOpen(true);
+  }
+
+  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
+    applyPhotoFile(event.target.files?.[0] ?? null);
+  }
+
+  function clearPhoto() {
+    if (photoPreviewUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(photoPreviewUrl);
+    }
+    setPhotoFile(null);
+    setPhotoPreviewUrl("");
+    setMemberForm((current) => ({ ...current, pictureUrl: "" }));
+  }
+
+  async function handleSubmitMember(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsCreating(true);
+    setIsSaving(true);
     try {
-      const member = await createMember(newMember);
-      setOptimisticMembers((current) => [...current, member]);
-      setNewMember({
-        memberId: "",
-        name: "",
-        address: "",
-        dob: "",
-        pictureUrl: "",
-      });
-      setIsCreateOpen(false);
-      selectMember(member);
-      onMessage(`Member created and QR generated for ${member.name}`, "success");
+      const pictureUrl = photoFile
+        ? await uploadMemberPhoto(photoFile)
+        : memberForm.pictureUrl;
+
+      if (editingMember) {
+        const updated = await updateMember({
+          id: editingMember.id,
+          name: memberForm.name,
+          email: memberForm.email,
+          phone: memberForm.phone,
+          address: memberForm.address,
+          dob: memberForm.dob,
+          pictureUrl,
+        });
+        setOptimisticMembers((current) => [
+          ...current.filter((item) => item.id !== updated.id),
+          updated,
+        ]);
+        closeFormDialog();
+        onMessage(`Updated ${updated.name}`, "success");
+      } else {
+        const created = await createMember({
+          memberId: memberForm.memberId,
+          name: memberForm.name,
+          email: memberForm.email,
+          phone: memberForm.phone,
+          address: memberForm.address,
+          dob: memberForm.dob,
+          pictureUrl,
+        });
+        setOptimisticMembers((current) => [...current, created]);
+        setMemberForm(emptyMemberForm);
+        setPhotoFile(null);
+        setPhotoPreviewUrl("");
+        closeFormDialog();
+        selectMember(created);
+        onMessage(
+          `Member created and QR generated for ${created.name}`,
+          "success",
+        );
+      }
     } catch (error) {
       onMessage(
-        error instanceof Error ? error.message : "Unable to create member",
+        error instanceof Error ? error.message : "Unable to save member",
         "error",
       );
     } finally {
-      setIsCreating(false);
+      setIsSaving(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingMember) return;
+    setIsDeleting(true);
+    try {
+      await deleteMember(deletingMember.id);
+      setDeletedMemberIds((current) => [...current, deletingMember.id]);
+      setOptimisticMembers((current) =>
+        current.filter((item) => item.id !== deletingMember.id),
+      );
+      if (selectedMember?.id === deletingMember.id) {
+        setSelectedMember(null);
+      }
+      onMessage(`Deleted ${deletingMember.name}`, "success");
+      setDeletingMember(null);
+    } catch (error) {
+      onMessage(
+        error instanceof Error ? error.message : "Unable to delete member",
+        "error",
+      );
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -253,7 +510,7 @@ export default function MemberDirectory({
           </div>
           <Button
             className="h-10 gap-2 bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
-            onClick={() => setIsCreateOpen(true)}
+            onClick={openCreateDialog}
           >
             <Plus className="size-4" />
             Add member
@@ -267,7 +524,10 @@ export default function MemberDirectory({
             membersPromise={membersPromise}
             search={search}
             optimisticMembers={optimisticMembers}
+            deletedMemberIds={deletedMemberIds}
             onSelectMember={selectMember}
+            onEditMember={openEditDialog}
+            onDeleteMember={setDeletingMember}
           />
         </Suspense>
       ) : (
@@ -275,29 +535,36 @@ export default function MemberDirectory({
           initialMembers={initialMembers ?? []}
           search={search}
           optimisticMembers={optimisticMembers}
+          deletedMemberIds={deletedMemberIds}
           onSelectMember={selectMember}
+          onEditMember={openEditDialog}
+          onDeleteMember={setDeletingMember}
         />
       )}
 
-      {isCreateOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-5">
-          <Card className="w-full max-w-md">
+      {isFormOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 p-5">
+          <Card className="my-auto w-full max-w-md">
             <CardContent className="p-6">
               <p className="text-xs font-bold uppercase tracking-[.11em] text-[#85858c]">
-                New member
+                {editingMember ? "Edit member" : "New member"}
               </p>
-              <h2 className="mt-2 text-2xl font-bold">Create a member QR</h2>
+              <h2 className="mt-2 text-2xl font-bold">
+                {editingMember ? "Update member profile" : "Create a member QR"}
+              </h2>
               <p className="mt-2 text-sm text-[#85858c]">
-                Leave Member ID blank to generate one automatically.
+                {editingMember
+                  ? "Member ID is locked so existing QR codes stay valid."
+                  : "Leave Member ID blank to generate one automatically."}
               </p>
-              <form className="mt-6 grid gap-4" onSubmit={handleCreateMember}>
+              <form className="mt-6 grid gap-4" onSubmit={handleSubmitMember}>
                 <label className="grid gap-2 text-sm font-semibold">
                   Name *
                   <Input
                     required
-                    value={newMember.name}
+                    value={memberForm.name}
                     onChange={(event) =>
-                      setNewMember((current) => ({
+                      setMemberForm((current) => ({
                         ...current,
                         name: event.target.value,
                       }))
@@ -308,21 +575,54 @@ export default function MemberDirectory({
                   Member ID
                   <Input
                     placeholder="Example: MEMBER-001"
-                    value={newMember.memberId}
+                    value={memberForm.memberId}
+                    readOnly={Boolean(editingMember)}
+                    disabled={Boolean(editingMember)}
                     onChange={(event) =>
-                      setNewMember((current) => ({
+                      setMemberForm((current) => ({
                         ...current,
                         memberId: event.target.value,
                       }))
                     }
                   />
                 </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-semibold">
+                    Email
+                    <Input
+                      type="email"
+                      placeholder="Optional"
+                      value={memberForm.email}
+                      onChange={(event) =>
+                        setMemberForm((current) => ({
+                          ...current,
+                          email: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-semibold">
+                    Phone
+                    <Input
+                      type="tel"
+                      placeholder="Optional"
+                      value={memberForm.phone}
+                      onChange={(event) =>
+                        setMemberForm((current) => ({
+                          ...current,
+                          phone: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
                 <label className="grid gap-2 text-sm font-semibold">
                   Address
                   <Input
-                    value={newMember.address}
+                    placeholder="Optional"
+                    value={memberForm.address}
                     onChange={(event) =>
-                      setNewMember((current) => ({
+                      setMemberForm((current) => ({
                         ...current,
                         address: event.target.value,
                       }))
@@ -333,43 +633,150 @@ export default function MemberDirectory({
                   Date of birth
                   <Input
                     type="date"
-                    value={newMember.dob}
+                    value={memberForm.dob}
                     onChange={(event) =>
-                      setNewMember((current) => ({
+                      setMemberForm((current) => ({
                         ...current,
                         dob: event.target.value,
                       }))
                     }
                   />
                 </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Picture URL
-                  <Input
-                    type="url"
-                    placeholder="Optional"
-                    value={newMember.pictureUrl}
-                    onChange={(event) =>
-                      setNewMember((current) => ({
-                        ...current,
-                        pictureUrl: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
+                <div className="grid gap-2 text-sm font-semibold">
+                  <label htmlFor="member-photo-input">Photo</label>
+                  {isCameraOpen ? (
+                    <div className="grid gap-2">
+                      <video
+                        ref={videoRef}
+                        aria-label="Member camera preview"
+                        className="aspect-video w-full rounded-lg border border-[#e7e7ea] bg-black object-cover"
+                        muted
+                        playsInline
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={capturePhoto}
+                          disabled={isStartingCamera}
+                        >
+                          {isStartingCamera ? "Starting camera..." : "Capture"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={stopCamera}
+                        >
+                          Cancel camera
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {photoPreviewUrl && (
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={photoPreviewUrl}
+                            alt="Member photo preview"
+                            className="size-20 rounded-full border border-[#e7e7ea] object-cover"
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            onClick={startCamera}
+                          >
+                            Retake
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs text-[#85858c]"
+                            onClick={clearPhoto}
+                          >
+                            Remove photo
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <Input
+                          id="member-photo-input"
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={startCamera}
+                        >
+                          <Camera className="size-4" />
+                          Take photo
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div className="mt-2 grid grid-cols-2 gap-2">
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setIsCreateOpen(false)}
-                    disabled={isCreating}
+                    onClick={closeFormDialog}
+                    disabled={isSaving}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" loading={isCreating}>
-                    {isCreating ? "Creating..." : "Create & generate QR"}
+                  <Button type="submit" loading={isSaving}>
+                    {isSaving
+                      ? editingMember
+                        ? "Saving..."
+                        : "Creating..."
+                      : editingMember
+                        ? "Save changes"
+                        : "Create & generate QR"}
                   </Button>
                 </div>
               </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {deletingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-5">
+          <Card className="w-full max-w-sm">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-bold">
+                Delete {deletingMember.name}?
+              </h2>
+              <p className="mt-2 text-sm text-[#85858c]">
+                This will permanently remove this member and all of their event
+                check-in records. This action cannot be undone.
+              </p>
+              <div className="mt-6 grid grid-cols-2 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeletingMember(null)}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-[#e76b60] text-white hover:bg-[#c94d42]"
+                  onClick={handleConfirmDelete}
+                  loading={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete member"}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

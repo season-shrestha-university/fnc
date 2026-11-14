@@ -6,11 +6,13 @@ import { useSwipeable } from "react-swipeable";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { defaultTrackedFields } from "@/components/rollcall/shared/member-utils";
 import type { Member } from "@/components/rollcall/shared/types";
 
 export default function AttendanceView({
   activeEvent,
   members,
+  trackedFields = defaultTrackedFields,
   isDownloading = false,
   onBack,
   onDelete,
@@ -18,6 +20,7 @@ export default function AttendanceView({
 }: {
   activeEvent: string;
   members: Member[];
+  trackedFields?: string[];
   isDownloading?: boolean;
   onBack: () => void;
   onDelete: (checkInId: string) => Promise<void>;
@@ -75,6 +78,7 @@ export default function AttendanceView({
           <MemberRow
             key={member.id}
             member={member}
+            trackedFields={trackedFields}
             onDelete={onDelete}
             isLast={member === visibleMembers[visibleMembers.length - 1]}
           />
@@ -91,10 +95,12 @@ export default function AttendanceView({
 
 export function MemberRow({
   member,
+  trackedFields = defaultTrackedFields,
   onDelete,
   isLast,
 }: {
   member: Member;
+  trackedFields?: string[];
   onDelete: (checkInId: string) => Promise<void>;
   isLast: boolean;
 }) {
@@ -135,6 +141,20 @@ export function MemberRow({
     },
   });
 
+  const detailParts: string[] = [];
+  if (trackedFields.includes("Email") && member.email) {
+    detailParts.push(member.email);
+  }
+  if (trackedFields.includes("Phone") && member.phone) {
+    detailParts.push(member.phone);
+  }
+  if (trackedFields.includes("Address") && member.address) {
+    detailParts.push(member.address);
+  }
+  if (trackedFields.includes("Date of birth") && member.dob) {
+    detailParts.push(`DOB: ${member.dob}`);
+  }
+
   return (
     <div
       className={`relative overflow-hidden bg-[#fbe9e8] ${
@@ -166,12 +186,22 @@ export function MemberRow({
         }}
         {...(isDeleting ? {} : swipeHandlers)}
       >
-        <Avatar initials={member.initials} color={member.color} />
+        <Avatar
+          initials={member.initials}
+          color={member.color}
+          pictureUrl={member.pictureUrl}
+          alt={member.name}
+        />
         <div className="min-w-0 flex-1">
           <strong className="block text-sm">{member.name}</strong>
           <span className="mt-1 block text-sm text-[#85858c]">
             Member ID · {member.id}
           </span>
+          {detailParts.length > 0 && (
+            <span className="mt-0.5 block truncate text-xs text-[#85858c]">
+              {detailParts.join(" · ")}
+            </span>
+          )}
         </div>
         <time className="text-sm text-[#85858c]">
           {member.createdDate ?? member.date}
@@ -188,16 +218,39 @@ export function Avatar({
   initials,
   color = "bg-[#e4e3fb] text-[#5551aa]",
   small = false,
+  size,
+  pictureUrl,
+  alt = "",
 }: {
   initials: string;
   color?: string;
   small?: boolean;
+  size?: "sm" | "md" | "lg";
+  pictureUrl?: string;
+  alt?: string;
 }) {
+  const resolvedSize = size ?? (small ? "sm" : "md");
+  const sizeClass =
+    resolvedSize === "sm"
+      ? "size-9 text-xs"
+      : resolvedSize === "lg"
+        ? "size-16 text-lg"
+        : "size-12 text-base";
+
+  if (pictureUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={pictureUrl}
+        alt={alt}
+        className={`shrink-0 rounded-full object-cover ${sizeClass}`}
+      />
+    );
+  }
+
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-        small ? "size-[29px]" : "size-[34px]"
-      } ${color}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold ${sizeClass} ${color}`}
     >
       {initials}
     </div>

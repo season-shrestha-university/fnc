@@ -68,4 +68,35 @@ describe("EventDialogs", () => {
     expect(deleteButton).toHaveAttribute("aria-busy", "true");
     expect(deleteButton.querySelector(".animate-spin")).not.toBeNull();
   });
+
+  it("binds eventDate and exposes all selectable tracked fields", () => {
+    const onEventDateChange = vi.fn();
+    const onTrackedFieldsChange = vi.fn();
+
+    renderEventDialogs({
+      eventDate: "2026-11-20",
+      onEventDateChange,
+      onTrackedFieldsChange,
+    });
+
+    const dateInput = screen.getByLabelText("Date");
+    expect(dateInput).toHaveValue("2026-11-20");
+    fireEvent.change(dateInput, { target: { value: "2026-11-25" } });
+    expect(onEventDateChange).toHaveBeenCalledWith("2026-11-25");
+
+    expect(screen.getByLabelText(/Name/)).toBeDisabled();
+    expect(screen.getByLabelText(/Member ID/)).toBeDisabled();
+
+    for (const field of ["Email", "Phone", "Address", "Date of birth", "Photo"]) {
+      const checkbox = screen.getByLabelText(field);
+      expect(checkbox).not.toBeDisabled();
+    }
+
+    fireEvent.click(screen.getByLabelText("Email"));
+    expect(onTrackedFieldsChange).toHaveBeenCalledWith([
+      "Name",
+      "Member ID",
+      "Email",
+    ]);
+  });
 });

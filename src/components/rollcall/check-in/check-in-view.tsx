@@ -27,6 +27,7 @@ import AttendanceView, { Avatar, MemberRow } from "@/components/rollcall/check-i
 import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
 import EventDialogs from "@/components/rollcall/events/event-dialogs";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
+import LocalDate from "@/components/rollcall/shared/local-date";
 import {
   defaultTrackedFields,
   formatCheckInDate,
@@ -81,6 +82,9 @@ export default function CheckInView({
   const [isEventOpen, setIsEventOpen] = useState(false);
   const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
   const [eventName, setEventName] = useState(event?.name ?? "");
+  const [eventDate, setEventDate] = useState(
+    event?.eventDate ?? getCurrentDate(),
+  );
   const [trackedFields, setTrackedFields] = useState(
     event?.trackedFields ?? defaultTrackedFields,
   );
@@ -110,6 +114,7 @@ export default function CheckInView({
 
   function openEventDialog() {
     setEventName(currentEvent?.name ?? "");
+    setEventDate(currentEvent?.eventDate ?? getCurrentDate());
     setTrackedFields(currentEvent?.trackedFields ?? defaultTrackedFields);
     setIsEventOpen(true);
   }
@@ -127,10 +132,23 @@ export default function CheckInView({
         initials: getInitials(checkIn.name),
         date: getCurrentDate(),
         color: getAvatarColor(checkIn.name),
+        email: checkIn.email,
+        phone: checkIn.phone,
+        address: checkIn.address,
+        dob: checkIn.dob,
+        pictureUrl: checkIn.pictureUrl,
       };
       setMembers((current) => [member, ...current]);
       playBeep(880);
-      showToast(`${member.name} (${member.id}) checked in`, "success");
+      showToast("Checked in", "success", {
+        member: {
+          id: member.id,
+          name: member.name,
+          initials: member.initials,
+          color: member.color,
+          pictureUrl: member.pictureUrl,
+        },
+      });
     } catch (error) {
       playBeep(440);
       showToast(
@@ -173,18 +191,27 @@ export default function CheckInView({
     setIsDownloading(true);
     let response: Response;
     try {
-      response = await fetch("/api/export/prototype", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          eventName: activeEvent,
-          members: members.map((member) => ({
-            id: member.id,
-            name: member.name,
-            date: formatCheckInDate(member),
-          })),
-        }),
-      });
+      response = await fetch(
+        `/api/export/${encodeURIComponent(eventId || "event")}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventName: activeEvent,
+            trackedFields: currentEvent?.trackedFields ?? defaultTrackedFields,
+            members: members.map((member) => ({
+              id: member.id,
+              name: member.name,
+              email: member.email ?? "",
+              phone: member.phone ?? "",
+              address: member.address ?? "",
+              dob: member.dob ?? "",
+              pictureUrl: member.pictureUrl ?? "",
+              date: formatCheckInDate(member),
+            })),
+          }),
+        },
+      );
     } catch (error) {
       setIsDownloading(false);
       showToast(
@@ -224,12 +251,14 @@ export default function CheckInView({
       const savedId = await saveEvent({
         id: eventId || undefined,
         name: nextEventName,
+        eventDate,
         trackedFields,
       });
       const wasActive = Boolean(activeEvent);
       setCurrentEvent({
         id: savedId,
         name: nextEventName,
+        eventDate,
         trackedFields,
       });
       setIsEventOpen(false);
@@ -309,6 +338,7 @@ export default function CheckInView({
         <AttendanceView
           activeEvent={activeEvent}
           members={members}
+          trackedFields={currentEvent.trackedFields}
           isDownloading={isDownloading}
           onBack={() => setIsAttendanceOpen(false)}
           onDelete={deleteMember}
@@ -342,13 +372,20 @@ export default function CheckInView({
             </div>
             <div className="flex items-center gap-3 text-sm text-[#85858c]">
               <span className="hidden sm:inline">
-                Tuesday, 18 June 2024 · 10:00 AM
+                <LocalDate
+                  value={currentEvent.eventDate}
+                  options={{
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  }}
+                />
               </span>
               <Separator
                 orientation="vertical"
                 className="h-4 bg-[#e7e7ea]"
               />
-              <span className="hidden sm:inline">Community Room</span>
               <Button
                 variant="ghost"
                 className="text-sm font-semibold text-[#5b5ce2] hover:bg-[#f1f1f6] hover:text-[#4748c5]"
@@ -511,18 +548,24 @@ export default function CheckInView({
                 </div>
                 <Separator className="my-7 bg-[#e7e7ea]" />
                 {latestMember ? (
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-center gap-3.5">
                     <Avatar
                       initials={latestMember.initials}
                       color={latestMember.color}
+                      pictureUrl={latestMember.pictureUrl}
+                      alt={latestMember.name}
+                      size="lg"
                     />
-                    <div>
+                    <div className="min-w-0">
                       <span className="mb-1 block text-xs text-[#85858c]">
                         Last check-in
                       </span>
-                      <strong className="block text-base">
+                      <strong className="block truncate text-base">
                         {latestMember.name}
                       </strong>
+                      <span className="block text-xs text-[#85858c]">
+                        Member ID · {latestMember.id}
+                      </span>
                     </div>
                     <time className="ml-auto text-xs text-[#85858c]">
                       {formatCheckInDate(latestMember)}
@@ -571,6 +614,7 @@ export default function CheckInView({
                 <MemberRow
                   key={member.id}
                   member={member}
+                  trackedFields={currentEvent.trackedFields}
                   onDelete={deleteMember}
                   isLast={
                     member === visibleMembers[visibleMembers.length - 1]
@@ -590,6 +634,7 @@ export default function CheckInView({
       <EventDialogs
         activeEvent={activeEvent}
         eventName={eventName}
+        eventDate={eventDate}
         trackedFields={trackedFields}
         isEventOpen={isEventOpen}
         isDeleteEventOpen={isDeleteEventOpen}
@@ -598,6 +643,7 @@ export default function CheckInView({
         onEventOpenChange={setIsEventOpen}
         onDeleteOpenChange={setIsDeleteEventOpen}
         onEventNameChange={setEventName}
+        onEventDateChange={setEventDate}
         onTrackedFieldsChange={setTrackedFields}
         onSave={saveCurrentEvent}
         onDeleteRequest={() => {

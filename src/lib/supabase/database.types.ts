@@ -14,6 +14,8 @@ export type Database = {
           id: string;
           member_id: string;
           name: string;
+          email: string | null;
+          phone: string | null;
           address: string | null;
           dob: string | null;
           picture_url: string | null;
@@ -22,6 +24,8 @@ export type Database = {
           id?: string;
           member_id: string;
           name: string;
+          email?: string | null;
+          phone?: string | null;
           address?: string | null;
           dob?: string | null;
           picture_url?: string | null;
