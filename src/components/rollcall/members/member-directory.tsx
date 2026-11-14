@@ -275,7 +275,9 @@ export default function MemberDirectory({
       color: { dark: "#17171a", light: "#ffffff" },
     })
       .then(setQrDataUrl)
-      .catch(() => onMessage("Unable to generate this member QR code", "error"));
+      .catch(() =>
+        onMessage("Unable to generate this member QR code", "error"),
+      );
   }, [onMessage, selectedMember]);
 
   useEffect(() => {
@@ -480,22 +482,9 @@ export default function MemberDirectory({
     <section className="py-10">
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <Link
-            href="/"
-            className="-ml-3 mb-4 inline-flex h-8 items-center gap-2 rounded-lg px-2.5 text-sm font-medium text-[#77777e] transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" />
-            Back to check-in
-          </Link>
-          <p className="mb-2.5 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-            Member directory
-          </p>
           <h1 className="text-4xl font-bold tracking-[-.05em]">
             Members and QR codes.
           </h1>
-          <p className="mt-3 max-w-xl text-sm text-[#85858c]">
-            Each QR contains the exact member ID used by the check-in scanner.
-          </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <div className="relative sm:w-64">

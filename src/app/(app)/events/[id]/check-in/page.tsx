@@ -13,11 +13,7 @@ async function EventCheckInContent({
   if (!event) redirect("/events");
 
   return (
-    <CheckInView
-      event={event}
-      memberCount={memberCount}
-      checkIns={checkIns}
-    />
+    <CheckInView event={event} memberCount={memberCount} checkIns={checkIns} />
   );
 }
 

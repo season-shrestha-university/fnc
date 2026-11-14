@@ -1,17 +1,13 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  mockCreateMember,
-  mockUpdateMember,
-  mockDeleteMember,
-  mockShowToast,
-} = vi.hoisted(() => ({
-  mockCreateMember: vi.fn(),
-  mockUpdateMember: vi.fn(),
-  mockDeleteMember: vi.fn(),
-  mockShowToast: vi.fn(),
-}));
+const { mockCreateMember, mockUpdateMember, mockDeleteMember, mockShowToast } =
+  vi.hoisted(() => ({
+    mockCreateMember: vi.fn(),
+    mockUpdateMember: vi.fn(),
+    mockDeleteMember: vi.fn(),
+    mockShowToast: vi.fn(),
+  }));
 
 vi.mock("@/app/actions", () => ({
   createMember: mockCreateMember,
@@ -113,7 +109,9 @@ describe("MemberDirectory", () => {
 
     render(<MemberDirectory initialMembers={sampleMembers} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Delete Grace Hopper" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete Grace Hopper" }),
+    );
     expect(screen.getByText("Delete Grace Hopper?")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Delete member" }));
@@ -239,12 +237,15 @@ describe("MemberDirectory", () => {
       await waitFor(() => {
         expect(drawImage).toHaveBeenCalled();
         expect(stopTrack).toHaveBeenCalled();
-        expect(
-          screen.getByAltText("Member photo preview"),
-        ).toHaveAttribute("src", "blob:captured-photo");
+        expect(screen.getByAltText("Member photo preview")).toHaveAttribute(
+          "src",
+          "blob:captured-photo",
+        );
       });
 
-      fireEvent.click(screen.getByRole("button", { name: "Create & generate QR" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: "Create & generate QR" }),
+      );
 
       await waitFor(() => {
         expect(mockCreateMember).toHaveBeenCalledWith(
@@ -299,7 +300,9 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Capture" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Retake" })).toBeInTheDocument();
+        expect(
+          screen.getByRole("button", { name: "Retake" }),
+        ).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByRole("button", { name: "Retake" }));

@@ -155,9 +155,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <div className="mb-12 px-3 font-sans text-base font-extrabold">
             <Logo />
           </div>
-          <p className="px-3 pb-3 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-            Workspace
-          </p>
+
           <NavLinks label="Primary navigation" />
           <div className="mt-auto">
             <Button
@@ -171,7 +169,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <div className="mt-4 flex items-center gap-2.5 border-t border-[#e7e7ea] px-1.5 pt-[18px]">
               <Avatar initials="JM" small />
               <div>
-                <strong className="block text-sm">Jamie Morgan</strong>
+                <strong className="block text-sm">Season Shrestha</strong>
                 <span className="mt-0.5 block text-xs text-[#85858c]">
                   Volunteer
                 </span>
@@ -200,9 +198,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   <X />
                 </Button>
               </div>
-              <p className="px-3 pb-3 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-                Workspace
-              </p>
               <NavLinks
                 label="Mobile navigation"
                 onNavigate={() => setIsMobileNavOpen(false)}

@@ -10,23 +10,15 @@ const chartDateFormat: Intl.DateTimeFormatOptions = {
 
 export function DashboardHeader() {
   return (
-    <header className="flex flex-col gap-6 border-b border-[#e7e7ea] pb-8 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <p className="mb-2 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-          Workspace pulse
-        </p>
-        <h1
-          id="dashboard-heading"
-          className="font-sans text-4xl font-bold tracking-[-.05em]"
-        >
-          Dashboard
-        </h1>
-        <p className="mt-3 max-w-xl text-sm leading-6 text-[#68686f]">
-          A quick read on who is showing up and where your events are gathering
-          momentum.
-        </p>
-      </div>
-      <div className="rounded-full bg-[#e8f5ed] px-3 py-1.5 text-sm font-semibold text-[#26784f]">
+    <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+      <h1
+        id="dashboard-heading"
+        className="font-sans text-4xl font-bold tracking-[-.05em]"
+      >
+        Dashboard
+      </h1>
+
+      <div className="w-fit rounded-full bg-[#e8f5ed] px-3 py-1.5 text-sm font-semibold text-[#26784f]">
         Live attendance
       </div>
     </header>

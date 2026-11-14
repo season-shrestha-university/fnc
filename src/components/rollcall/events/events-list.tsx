@@ -29,21 +29,14 @@ export function EventsChrome({
 }) {
   return (
     <section className="py-8 sm:py-12" aria-labelledby="events-heading">
-      <div className="flex flex-col gap-6 border-b border-[#e7e7ea] pb-8 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-6 border-b border-[#e7e7ea] pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-            Workspace calendar
-          </p>
           <h1
             id="events-heading"
             className="font-sans text-4xl font-bold tracking-[-.05em]"
           >
             Events
           </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-[#68686f]">
-            Keep an eye on every gathering and how many members have made it
-            through the door.
-          </p>
         </div>
         <Button
           className="h-11 gap-2 bg-[#5b5ce2] px-5 text-white hover:bg-[#4748c5]"
