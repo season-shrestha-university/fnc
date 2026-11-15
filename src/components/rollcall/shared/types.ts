@@ -13,4 +13,5 @@ export type Member = {
   address?: string;
   dob?: string;
   pictureUrl?: string;
+  syncStatus?: "pending" | "synced";
 };

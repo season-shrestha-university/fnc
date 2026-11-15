@@ -113,6 +113,8 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   );
 
   useEffect(() => {
+    void loadDecoder().catch(() => undefined);
+
     function handleTestScan(event: Event) {
       if (process.env.NODE_ENV === "production") return;
       const memberId = (event as CustomEvent<unknown>).detail;

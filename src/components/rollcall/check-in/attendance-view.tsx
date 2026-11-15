@@ -1,7 +1,14 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowLeft, Check, Download, Loader2, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  Clock,
+  Download,
+  Loader2,
+  Search,
+} from "lucide-react";
 import { useSwipeable } from "react-swipeable";
 
 import { Button } from "@/components/ui/button";
@@ -211,9 +218,23 @@ export function MemberRow({
         <time className="shrink-0 text-sm font-semibold text-muted-foreground tabular-nums">
           {member.createdDate ?? member.date}
         </time>
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tint text-primary">
-          <Check className="size-[17px]" />
-        </span>
+        {member.syncStatus === "pending" ? (
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#fbeedd] text-[#83551c]"
+            aria-label="Pending sync"
+            title="Waiting to sync"
+          >
+            <Clock className="size-[16px]" aria-hidden="true" />
+          </span>
+        ) : (
+          <span
+            className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tint text-primary"
+            aria-label="Synced"
+            title="Synced"
+          >
+            <Check className="size-[17px]" aria-hidden="true" />
+          </span>
+        )}
       </div>
     </div>
   );
@@ -234,6 +255,7 @@ export function Avatar({
   pictureUrl?: string;
   alt?: string;
 }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const resolvedSize = size ?? (small ? "sm" : "md");
   const sizeClass =
     resolvedSize === "sm"
@@ -242,13 +264,14 @@ export function Avatar({
         ? "size-16 text-lg"
         : "size-12 text-base";
 
-  if (pictureUrl) {
+  if (pictureUrl && failedUrl !== pictureUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={pictureUrl}
         alt={alt}
         className={`shrink-0 rounded-full object-cover ${sizeClass}`}
+        onError={() => setFailedUrl(pictureUrl)}
       />
     );
   }

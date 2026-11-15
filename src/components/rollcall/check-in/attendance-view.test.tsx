@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import AttendanceView from "./attendance-view";
@@ -58,5 +58,52 @@ describe("AttendanceView", () => {
       screen.queryByRole("img", { name: "Ada Lovelace" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("AL")).toBeInTheDocument();
+  });
+
+  it("falls back to initials when an uncached photo fails to load offline", () => {
+    render(
+      <AttendanceView
+        activeEvent="Town Hall"
+        members={members}
+        trackedFields={["Name", "Member ID"]}
+        onBack={vi.fn()}
+        onDelete={vi.fn()}
+        onDownload={vi.fn()}
+      />,
+    );
+
+    const img = screen.getByRole("img", { name: "Ada Lovelace" });
+    fireEvent.error(img);
+
+    expect(
+      screen.queryByRole("img", { name: "Ada Lovelace" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("AL")).toBeInTheDocument();
+  });
+
+  it("renders pending and synced per-row status badges", () => {
+    render(
+      <AttendanceView
+        activeEvent="Town Hall"
+        members={[
+          { ...members[0], syncStatus: "pending" },
+          {
+            ...members[0],
+            checkInId: "ci-2",
+            id: "FNC-002",
+            name: "Grace Hopper",
+            initials: "GH",
+            syncStatus: "synced",
+          },
+        ]}
+        trackedFields={["Name", "Member ID"]}
+        onBack={vi.fn()}
+        onDelete={vi.fn()}
+        onDownload={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Pending sync")).toBeInTheDocument();
+    expect(screen.getByLabelText("Synced")).toBeInTheDocument();
   });
 });
