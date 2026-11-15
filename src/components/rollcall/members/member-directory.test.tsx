@@ -7,12 +7,18 @@ const {
   mockDeleteMember,
   mockShowToast,
   mockStorageUpload,
+  mockRouterRefresh,
 } = vi.hoisted(() => ({
   mockCreateMember: vi.fn(),
   mockUpdateMember: vi.fn(),
   mockDeleteMember: vi.fn(),
   mockShowToast: vi.fn(),
   mockStorageUpload: vi.fn().mockResolvedValue({ error: null }),
+  mockRouterRefresh: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mockRouterRefresh }),
 }));
 
 vi.mock("@/app/actions", () => ({
@@ -200,23 +206,18 @@ describe("MemberDirectory", () => {
       return video;
     }
 
-    it("captures a camera photo and submits it when creating a member", async () => {
+    it("captures a camera photo and submits it when updating a member", async () => {
       const { getUserMedia, stopTrack, drawImage, toBlob } =
         setupCameraEnvironment();
-      mockCreateMember.mockResolvedValue({
-        id: "uuid-3",
-        memberId: "FNC-003",
+      mockUpdateMember.mockResolvedValue({
+        ...sampleMembers[1],
         name: "Katherine Johnson",
-        email: "",
-        phone: "",
-        address: "",
-        dob: "",
         pictureUrl: "https://example.com/photo.webp",
       });
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Katherine Johnson" },
       });
@@ -264,12 +265,10 @@ describe("MemberDirectory", () => {
         );
       });
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Create & generate QR" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
-        expect(mockCreateMember).toHaveBeenCalledWith(
+        expect(mockUpdateMember).toHaveBeenCalledWith(
           expect.objectContaining({
             name: "Katherine Johnson",
             pictureUrl: "https://example.com/photo.webp",
@@ -282,7 +281,7 @@ describe("MemberDirectory", () => {
       const { stopTrack } = setupCameraEnvironment();
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
@@ -310,7 +309,7 @@ describe("MemberDirectory", () => {
       const { getUserMedia } = setupCameraEnvironment();
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
@@ -343,7 +342,7 @@ describe("MemberDirectory", () => {
       });
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       expect(mockShowToast).toHaveBeenCalledWith(
@@ -411,20 +410,15 @@ describe("MemberDirectory", () => {
         },
       );
 
-      mockCreateMember.mockResolvedValue({
-        id: "uuid-4",
-        memberId: "FNC-004",
+      mockUpdateMember.mockResolvedValue({
+        ...sampleMembers[1],
         name: "Alan Turing",
-        email: "",
-        phone: "",
-        address: "",
-        dob: "",
         pictureUrl: "https://example.com/photo.webp",
       });
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Alan Turing" },
       });
@@ -433,9 +427,7 @@ describe("MemberDirectory", () => {
       const pngFile = new File(["png-data"], "alan.png", { type: "image/png" });
       fireEvent.change(fileInput, { target: { files: [pngFile] } });
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Create & generate QR" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
         expect(mockStorageUpload).toHaveBeenCalledWith(
@@ -444,7 +436,7 @@ describe("MemberDirectory", () => {
           { contentType: "image/webp", upsert: true },
         );
       });
-      expect(mockCreateMember).toHaveBeenCalledWith(
+      expect(mockUpdateMember).toHaveBeenCalledWith(
         expect.objectContaining({
           name: "Alan Turing",
           pictureUrl: "https://example.com/photo.webp",
@@ -459,7 +451,7 @@ describe("MemberDirectory", () => {
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Margaret Hamilton" },
       });
@@ -482,9 +474,7 @@ describe("MemberDirectory", () => {
       });
       fireEvent.change(fileInput, { target: { files: [corruptImage] } });
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Create & generate QR" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
@@ -519,20 +509,15 @@ describe("MemberDirectory", () => {
         },
       );
 
-      mockCreateMember.mockResolvedValue({
-        id: "uuid-5",
-        memberId: "FNC-005",
+      mockUpdateMember.mockResolvedValue({
+        ...sampleMembers[1],
         name: "Annie Easley",
-        email: "",
-        phone: "",
-        address: "",
-        dob: "",
         pictureUrl: "https://example.com/photo.jpg",
       });
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
-      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Annie Easley" },
       });
@@ -541,9 +526,7 @@ describe("MemberDirectory", () => {
       const pngFile = new File(["png-data"], "annie.png", { type: "image/png" });
       fireEvent.change(fileInput, { target: { files: [pngFile] } });
 
-      fireEvent.click(
-        screen.getByRole("button", { name: "Create & generate QR" }),
-      );
+      fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
         expect(mockStorageUpload).toHaveBeenCalledWith(

@@ -35,7 +35,14 @@ function Logo() {
   return (
     <span className="flex items-center gap-2.5">
       <RollCallLogo compact />
-      RollCall
+      <span className="min-w-0">
+        <span className="block font-heading text-xl font-bold leading-tight tracking-[-.03em] text-foreground">
+          RollCall
+        </span>
+        <span className="block text-[13px] font-semibold leading-tight tracking-normal text-muted-foreground">
+          FNC UK Community Centre
+        </span>
+      </span>
     </span>
   );
 }
@@ -45,7 +52,7 @@ function NavLinkHint() {
   return (
     <span
       aria-hidden="true"
-      className={`ml-auto size-1.5 rounded-full bg-[#5b5ce2] transition-opacity duration-150 ${
+      className={`ml-auto size-1.5 rounded-full bg-primary transition-opacity duration-150 ${
         pending ? "animate-pulse opacity-100 delay-100" : "opacity-0"
       }`}
     />
@@ -71,13 +78,15 @@ function NavLinksView({
             href={href}
             aria-current={active ? "page" : undefined}
             onClick={onNavigate}
-            className={`flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-[#5b5ce2] ${
-              active ? "bg-[#f1f1f6] text-[#17171a]" : "text-[#77777e]"
+            className={`flex min-h-12 items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-bold transition-colors ${
+              active
+                ? "bg-tint text-accent-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
             }`}
           >
             <Icon
-              className={`size-[18px] ${
-                active ? "text-[#5b5ce2]" : "text-[#8e8e95]"
+              className={`size-5 ${
+                active ? "text-primary" : "text-muted-foreground"
               }`}
             />
             {itemLabel}
@@ -149,10 +158,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f7f9] text-[#17171a]">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="flex min-h-screen">
-        <aside className="hidden w-60 shrink-0 flex-col border-r border-[#e7e7ea] bg-white px-[18px] py-7 lg:flex">
-          <div className="mb-12 px-3 font-sans text-base font-extrabold">
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-border bg-card px-4 py-7 lg:flex">
+          <div className="mb-10 px-2">
             <Logo />
           </div>
 
@@ -160,17 +169,17 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <div className="mt-auto">
             <Button
               variant="ghost"
-              className="h-auto w-full justify-start gap-3 px-3 py-2.5 text-sm font-semibold text-[#77777e]"
+              className="min-h-12 w-full justify-start gap-3 px-3 py-2.5 text-[15px] font-bold text-muted-foreground"
               onClick={() => showToast("Help center coming soon")}
             >
-              <CircleHelp className="size-[18px] text-[#8e8e95]" />
+              <CircleHelp className="size-5 text-muted-foreground" />
               Help
             </Button>
-            <div className="mt-4 flex items-center gap-2.5 border-t border-[#e7e7ea] px-1.5 pt-[18px]">
+            <div className="mt-4 flex items-center gap-3 border-t border-border px-1.5 pt-[18px]">
               <Avatar initials="JM" small />
               <div>
-                <strong className="block text-sm">Season Shrestha</strong>
-                <span className="mt-0.5 block text-xs text-[#85858c]">
+                <strong className="block text-[15px] font-bold">Season Shrestha</strong>
+                <span className="mt-0.5 block text-sm text-muted-foreground">
                   Volunteer
                 </span>
               </div>
@@ -182,17 +191,18 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
               aria-label="Close menu"
-              className="absolute inset-0 bg-[#17171a]/30"
+              className="absolute inset-0 bg-foreground/45"
               onClick={() => setIsMobileNavOpen(false)}
               type="button"
             />
-            <aside className="relative flex h-full w-64 flex-col border-r border-[#e7e7ea] bg-white px-[18px] py-7 shadow-xl">
-              <div className="mb-12 flex items-center justify-between px-3 font-sans text-base font-extrabold">
+            <aside className="relative flex h-full w-72 flex-col rounded-r-2xl bg-card px-4 py-6 shadow-xl">
+              <div className="mb-10 flex items-center justify-between gap-2 px-2">
                 <Logo />
                 <Button
                   aria-label="Close menu"
                   size="icon"
                   variant="ghost"
+                  className="rounded-full"
                   onClick={() => setIsMobileNavOpen(false)}
                 >
                   <X />
@@ -206,24 +216,30 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
         )}
 
-        <div className="mx-auto w-full max-w-[1180px] px-5 pb-20 sm:px-8 lg:px-12">
-          <header className="flex h-20 items-center justify-between border-b border-[#e7e7ea]">
+        <div className="mx-auto w-full max-w-[1180px] px-4 pb-20 sm:px-8 lg:px-12">
+          <header className="flex h-20 items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
-                className="lg:hidden"
+                className="rounded-full bg-card ring-1 ring-border lg:hidden"
                 aria-expanded={isMobileNavOpen}
                 aria-label="Open menu"
                 onClick={() => setIsMobileNavOpen(true)}
               >
                 <Menu />
               </Button>
-              <span className="text-sm text-[#85858c]">Workspace</span>
+              <span className="flex items-center gap-2.5 font-heading text-lg font-bold tracking-[-.03em] lg:hidden">
+                <RollCallLogo compact />
+                RollCall
+              </span>
+              <span className="hidden text-[15px] font-semibold text-muted-foreground lg:inline">
+                Workspace
+              </span>
             </div>
             <Button
               aria-label="Sign out"
-              className="gap-2 text-[#77777e]"
+              className="gap-2 rounded-full bg-card px-4 text-muted-foreground ring-1 ring-border hover:text-foreground"
               onClick={() => void signOut()}
               variant="ghost"
               loading={isSigningOut}

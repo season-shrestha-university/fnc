@@ -17,30 +17,30 @@ async function EventDetailsContent({
     <>
       <h1
         id="event-heading"
-        className="mt-6 text-4xl font-bold tracking-[-.05em]"
+        className="mt-6 font-heading text-4xl font-extrabold tracking-[-.03em]"
       >
         {event.name}
       </h1>
-      <p className="mt-3 text-[#68686f]">
+      <p className="mt-2 text-base font-medium text-muted-foreground tabular-nums">
         {event.participantCount} of {event.memberCount} participants
       </p>
       <div className="mt-8 flex flex-wrap gap-3">
         <Link
-          className="rounded-md bg-[#5b5ce2] px-4 py-2 text-sm font-semibold text-white"
+          className="inline-flex h-14 items-center rounded-lg bg-primary px-5 text-[17px] font-bold text-primary-foreground transition-colors hover:bg-primary-strong"
           href={`/events/${event.id}/check-in`}
           prefetch={true}
         >
           Scan / check-in
         </Link>
         <Link
-          className="rounded-md border border-[#e7e7ea] px-4 py-2 text-sm font-semibold"
+          className="inline-flex h-14 items-center rounded-lg bg-card px-5 text-[17px] font-bold ring-1 ring-border transition-colors hover:bg-muted"
           href={`/events/${event.id}/check-in`}
           prefetch={true}
         >
           View attendance
         </Link>
         <Link
-          className="rounded-md border border-[#e7e7ea] px-4 py-2 text-sm font-semibold"
+          className="inline-flex h-14 items-center rounded-lg bg-card px-5 text-[17px] font-bold ring-1 ring-border transition-colors hover:bg-muted"
           href={`/events/${event.id}/check-in`}
           prefetch={true}
         >
@@ -56,7 +56,10 @@ export default function EventDetailsPage({
 }: PageProps<"/events/[id]">) {
   return (
     <section className="py-8 sm:py-12" aria-labelledby="event-heading">
-      <Link className="inline-block text-sm text-[#5b5ce2]" href="/events">
+      <Link
+        className="inline-flex min-h-11 items-center text-[15px] font-bold text-primary hover:text-primary-strong"
+        href="/events"
+      >
         Back to events
       </Link>
       <Suspense fallback={<EventDetailsSkeleton />}>

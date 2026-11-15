@@ -35,45 +35,48 @@ export default function AttendanceView({
     <section className="py-8 sm:py-12">
       <Button
         variant="ghost"
-        className="mb-8 gap-2 px-0 text-sm text-[#5b5ce2] hover:bg-transparent"
+        className="mb-6 gap-2 rounded-full pl-2 pr-4 text-[15px] font-bold text-primary hover:bg-tint hover:text-primary-strong"
         onClick={onBack}
       >
-        <ArrowLeft className="size-4" />
+        <span className="flex size-8 items-center justify-center rounded-full bg-card ring-1 ring-border">
+          <ArrowLeft className="size-4" />
+        </span>
         Back to check-in
       </Button>
       <div className="mb-8 flex flex-col items-start justify-between gap-5 sm:flex-row sm:items-end">
         <div>
-          <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
+          <span className="text-[15px] font-bold text-muted-foreground">
             Attendance review
           </span>
-          <h1 className="mt-2 text-4xl font-bold tracking-[-.05em]">
+          <h1 className="mt-1 font-heading text-4xl font-extrabold tracking-[-.03em]">
             {activeEvent}
           </h1>
-          <p className="mt-2 text-sm text-[#85858c]">
+          <p className="mt-2 text-base font-medium text-muted-foreground">
             {members.length} member{members.length === 1 ? "" : "s"} checked in
           </p>
         </div>
         <Button
-          className="h-10 w-full gap-2 bg-[#5b5ce2] px-5 text-sm font-bold text-white hover:bg-[#4748c5] sm:w-auto"
+          size="lg"
+          className="w-full sm:w-auto"
           onClick={onDownload}
           loading={isDownloading}
         >
-          {!isDownloading && <Download className="size-4" />}
+          {!isDownloading && <Download />}
           {isDownloading ? "Downloading..." : "Download Excel"}
         </Button>
       </div>
-      <div className="relative mb-4 w-full sm:w-56">
-        <Search className="absolute left-2.5 top-2 size-4 text-[#85858c]" />
+      <div className="relative mb-4 w-full sm:w-72">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Search members"
           aria-label="Search attendance"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="h-9 rounded-lg border-[#e7e7ea] bg-white pl-8 text-sm"
+          className="pl-10"
         />
       </div>
-      <div className="overflow-hidden rounded-[13px] border border-[#e7e7ea] bg-white shadow-[0_12px_35px_rgba(27,27,42,.06)]">
+      <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
         {visibleMembers.map((member) => (
           <MemberRow
             key={member.id}
@@ -84,7 +87,7 @@ export default function AttendanceView({
           />
         ))}
         {visibleMembers.length === 0 && (
-          <p className="px-5 py-8 text-center text-base text-[#85858c]">
+          <p className="px-5 py-8 text-center text-base text-muted-foreground">
             No checked-in members match that search.
           </p>
         )}
@@ -157,13 +160,13 @@ export function MemberRow({
 
   return (
     <div
-      className={`relative overflow-hidden bg-[#fbe9e8] ${
-        isLast ? "" : "border-b border-[#f0f0f2]"
+      className={`relative overflow-hidden bg-destructive-tint ${
+        isLast ? "" : "border-b border-border"
       }`}
       aria-busy={isDeleting}
     >
       <div
-        className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-[#e76b60] text-sm font-semibold text-white"
+        className="absolute inset-y-0 right-0 flex w-[120px] items-center justify-center bg-destructive text-[15px] font-bold text-white"
         aria-hidden={!isDeleting}
       >
         {isDeleting ? (
@@ -176,7 +179,7 @@ export function MemberRow({
         )}
       </div>
       <div
-        className={`relative flex items-center gap-3 bg-white px-5 py-3.5 ${
+        className={`relative flex min-h-[72px] items-center gap-3 bg-card px-4 py-3 sm:px-5 ${
           isDeleting ? "pointer-events-none opacity-60" : ""
         }`}
         style={{
@@ -193,21 +196,23 @@ export function MemberRow({
           alt={member.name}
         />
         <div className="min-w-0 flex-1">
-          <strong className="block text-sm">{member.name}</strong>
-          <span className="mt-1 block text-sm text-[#85858c]">
+          <strong className="block truncate text-base font-bold leading-tight">
+            {member.name}
+          </strong>
+          <span className="mt-0.5 block text-sm font-medium text-muted-foreground tabular-nums">
             Member ID · {member.id}
           </span>
           {detailParts.length > 0 && (
-            <span className="mt-0.5 block truncate text-xs text-[#85858c]">
+            <span className="mt-0.5 block truncate text-sm text-muted-foreground">
               {detailParts.join(" · ")}
             </span>
           )}
         </div>
-        <time className="text-sm text-[#85858c]">
+        <time className="shrink-0 text-sm font-semibold text-muted-foreground tabular-nums">
           {member.createdDate ?? member.date}
         </time>
-        <span className="flex size-[19px] items-center justify-center rounded-full bg-[#e1f4e9] text-[#32a06c]">
-          <Check className="size-3" />
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tint text-primary">
+          <Check className="size-[17px]" />
         </span>
       </div>
     </div>
@@ -216,7 +221,7 @@ export function MemberRow({
 
 export function Avatar({
   initials,
-  color = "bg-[#e4e3fb] text-[#5551aa]",
+  color = "bg-tint text-primary-strong",
   small = false,
   size,
   pictureUrl,
@@ -232,7 +237,7 @@ export function Avatar({
   const resolvedSize = size ?? (small ? "sm" : "md");
   const sizeClass =
     resolvedSize === "sm"
-      ? "size-9 text-xs"
+      ? "size-10 text-sm"
       : resolvedSize === "lg"
         ? "size-16 text-lg"
         : "size-12 text-base";
@@ -250,7 +255,7 @@ export function Avatar({
 
   return (
     <div
-      className={`flex shrink-0 items-center justify-center rounded-full font-bold ${sizeClass} ${color}`}
+      className={`flex shrink-0 items-center justify-center rounded-full font-extrabold ${sizeClass} ${color}`}
     >
       {initials}
     </div>

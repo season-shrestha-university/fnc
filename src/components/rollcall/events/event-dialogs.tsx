@@ -55,12 +55,12 @@ export default function EventDialogs({
       <Dialog open={isEventOpen} onOpenChange={onEventOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold tracking-[-.045em]">
+            <DialogTitle className="text-2xl">
               {activeEvent ? "Update your event" : "Set up your event"}
             </DialogTitle>
           </DialogHeader>
           <div className="grid gap-4">
-            <label className="grid gap-2 text-sm font-semibold">
+            <label className="grid gap-2 text-[15px] font-bold">
               Event name
               <Input
                 name="name"
@@ -68,7 +68,7 @@ export default function EventDialogs({
                 onChange={(event) => onEventNameChange(event.target.value)}
               />
             </label>
-            <label className="grid gap-2 text-sm font-semibold">
+            <label className="grid gap-2 text-[15px] font-bold">
               Date
               <Input
                 type="date"
@@ -77,7 +77,7 @@ export default function EventDialogs({
               />
             </label>
             <fieldset className="grid gap-2">
-              <legend className="mb-1 text-sm font-semibold">
+              <legend className="mb-1 text-[15px] font-bold">
                 Track for each member
               </legend>
               {trackedFieldOptions.map((field) => {
@@ -87,7 +87,7 @@ export default function EventDialogs({
                 return (
                   <label
                     key={field}
-                    className="flex items-center gap-2 text-sm"
+                    className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-base font-medium ring-1 ring-border has-checked:bg-tint has-checked:ring-tint-strong"
                   >
                     <input
                       type="checkbox"
@@ -101,11 +101,11 @@ export default function EventDialogs({
                             : [...trackedFields, field],
                         );
                       }}
-                      className="size-4 accent-[#5b5ce2]"
+                      className="size-5 accent-primary"
                     />
                     {field}
                     {isRequired && (
-                      <span className="ml-auto text-sm text-[#85858c]">
+                      <span className="ml-auto text-sm font-semibold text-muted-foreground">
                         Required
                       </span>
                     )}
@@ -119,7 +119,7 @@ export default function EventDialogs({
               <Button
                 type="button"
                 variant="ghost"
-                className="text-[#e76b60] hover:bg-[#fbe9e8] hover:text-[#c94d42]"
+                className="text-destructive hover:bg-destructive-tint hover:text-destructive sm:mr-auto"
                 onClick={() => {
                   onDeleteRequest();
                 }}
@@ -132,7 +132,8 @@ export default function EventDialogs({
               type="submit"
               onClick={onSave}
               loading={isSaving}
-              className="w-full bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
+              size="lg"
+              className="w-full sm:w-auto sm:min-w-44"
             >
               {isSaving
                 ? activeEvent
@@ -166,7 +167,7 @@ export default function EventDialogs({
             </Button>
             <Button
               type="button"
-              className="bg-[#e76b60] text-white hover:bg-[#c94d42]"
+              className="bg-destructive text-white hover:bg-destructive/90"
               onClick={onDelete}
               loading={isDeleting}
             >

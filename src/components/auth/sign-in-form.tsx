@@ -47,21 +47,18 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f7f7f9] px-5 py-10">
-      <section className="w-full max-w-[410px] rounded-[26px] border border-[#e7e7ea] bg-white p-8 shadow-[0_24px_70px_rgba(23,23,26,0.08)]">
-        <RollCallLogo className="mb-8" />
-        <p className="mb-2 text-xs font-bold uppercase tracking-[.14em] text-[#85858c]">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
+      <section className="w-full max-w-[420px] rounded-2xl bg-card p-6 ring-1 ring-border sm:p-8">
+        <RollCallLogo className="mb-6" />
+        <p className="mb-1 text-[15px] font-bold text-muted-foreground">
           RollCall
         </p>
-        <h1 className="text-[30px] font-extrabold tracking-[-.04em] text-[#17171a]">
+        <h1 className="font-heading text-[30px] font-extrabold leading-tight tracking-[-.03em] text-foreground">
           Sign in to check in
         </h1>
-        <p className="mt-3 text-sm leading-6 text-[#68686f]">
-          Use your workspace account to manage events and attendance.
-        </p>
 
         <form className="mt-8 grid gap-4" onSubmit={handleSubmit}>
-          <label className="grid gap-2 text-sm font-semibold text-[#36363b]">
+          <label className="grid gap-2 text-[15px] font-bold text-foreground">
             Email
             <Input
               autoComplete="email"
@@ -72,7 +69,7 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
               value={email}
             />
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-[#36363b]">
+          <label className="grid gap-2 text-[15px] font-bold text-foreground">
             Password
             <Input
               autoComplete="current-password"
@@ -84,12 +81,16 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
             />
           </label>
           {error && (
-            <p className="rounded-xl bg-[#fff1f0] px-3 py-2.5 text-sm text-[#a33d39]" role="alert">
+            <p
+              className="rounded-lg bg-destructive-tint px-3 py-2.5 text-[15px] font-medium text-destructive"
+              role="alert"
+            >
               {error}
             </p>
           )}
           <Button
-            className="mt-2 h-11 justify-center gap-2"
+            size="lg"
+            className="mt-2 w-full justify-center"
             loading={isSubmitting}
             type="submit"
           >
@@ -98,9 +99,9 @@ export default function SignInForm({ onSuccess }: SignInFormProps) {
           </Button>
         </form>
 
-        <p className="mt-6 flex items-center gap-2 text-xs leading-5 text-[#85858c]">
-          <LockKeyhole className="size-3.5 shrink-0" />
-          Access is limited to authenticated workspace members.
+        <p className="mt-6 flex items-center gap-2 text-sm leading-5 text-muted-foreground">
+          <LockKeyhole className="size-4 shrink-0" />
+          Access is limited to authenticated members.
         </p>
       </section>
     </main>

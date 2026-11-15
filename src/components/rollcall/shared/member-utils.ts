@@ -2,9 +2,9 @@ import type { DashboardData } from "@/app/actions";
 import type { Member } from "./types";
 
 const avatarColors = [
-  "bg-[#e4e3fb] text-[#5956b1]",
-  "bg-[#fbe9d8] text-[#ae6f31]",
-  "bg-[#dcedf8] text-[#377798]",
+  "bg-[#e3f2ef] text-[#0b5e52]",
+  "bg-[#fbeedd] text-[#83551c]",
+  "bg-[#e1edf5] text-[#2c5a77]",
 ];
 
 export const trackedFieldOptions = [
