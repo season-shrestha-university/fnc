@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RollCall — Create a member QR, 3-step flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage" id="overview">
+  <header class="stage-head">
+    <div class="brand"><img src="assets/rollcall-mark-32-teal.svg" alt=""><div><p class="stage-kicker">RollCall · Members</p><h1 class="stage-title">Create a member QR, in three steps</h1></div></div>
+    <p class="stage-kicker">Photo first · Details · Contact (optional) · Done</p>
+  </header>
+  <div class="row">
+    <figure class="shot"><div class="phone" id="m-photo"></div><figcaption><b>1</b> Photo comes first, with the camera already open.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-captured"></div><figcaption><b>1b</b> Captured. Check it, retake, or go on.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-details"></div><figcaption><b>2</b> Name is required. The card updates as you type.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-contact"></div><figcaption><b>3</b> Optional contact details. Chips recap the earlier steps.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-done"></div><figcaption><b>Done</b> QR card ready to download, or add the next member.</figcaption></figure>
+  </div>
+</main>
+
+<section style="padding:48px 68px;width:max-content" id="desktop-wrap">
+<div class="desk" id="desktop">
+  <aside class="side">
+    <img class="logo" src="../rollcall-logo-concepts/v3/svg/rollcall-lockup-ink.svg" alt="RollCall">
+    <nav class="nav">
+      <a href="#"><span class="i-home"></span>Dashboard</a>
+      <a href="#"><span class="i-ev"></span>Events</a>
+      <a href="#"><span class="i-scan"></span>Check-in</a>
+      <a href="#" class="on"><span class="i-users"></span>Members</a>
+      <a href="#"><span class="i-chart"></span>Attendance</a>
+    </nav>
+  </aside>
+  <main>
+    <div class="phead"><h1>Members</h1><a class="btn btn-primary" href="#"><span class="i-plus"></span>Create member QR</a></div>
+    <table>
+      <thead><tr><th>Name</th><th>Member ID</th><th>Phone</th><th>Last seen</th></tr></thead>
+      <tbody>
+        <tr><td><span class="av">MT</span>Maya Thapa</td><td>MEMBER-118</td><td>07700 900214</td><td>Tue 10 Nov</td></tr>
+        <tr><td><span class="av">DR</span>Dil Rai</td><td>MEMBER-117</td><td>07700 900377</td><td>Tue 10 Nov</td></tr>
+        <tr><td><span class="av">SL</span>Sita Limbu</td><td>MEMBER-116</td><td>07700 900652</td><td>Thu 5 Nov</td></tr>
+        <tr><td><span class="av">PG</span>Prem Gurung</td><td>MEMBER-115</td><td>07700 900109</td><td>Tue 3 Nov</td></tr>
+        <tr><td><span class="av">KS</span>Kamala Shrestha</td><td>MEMBER-114</td><td>07700 900830</td><td>Tue 3 Nov</td></tr>
+        <tr><td><span class="av">HT</span>Hari Tamang</td><td>MEMBER-113</td><td>07700 900591</td><td>Thu 29 Oct</td></tr>
+        <tr><td><span class="av">RM</span>Rita Magar</td><td>MEMBER-112</td><td>07700 900446</td><td>Thu 29 Oct</td></tr>
+        <tr><td><span class="av">BK</span>Bishnu KC</td><td>MEMBER-111</td><td>07700 900763</td><td>Tue 27 Oct</td></tr>
+      </tbody>
+    </table>
+  </main>
+  <div class="scrim"></div>
+  <div class="dialog" role="dialog" aria-labelledby="dlg-title">
+    <div class="dh"><img src="assets/rollcall-mark-32-teal.svg" alt=""><h1 id="dlg-title">Create a member QR</h1><button class="chipbtn i-x" aria-label="Close"></button></div>
+    <div class="steps"><div class="seg"><i class="on"></i><i></i><i></i></div><p><b>Step 1 of 3</b> · Photo</p></div>
+    <div class="db">
+      <h2>Add a photo</h2>
+      <p class="helper">Volunteers use this to recognise them at the door.</p>
+      <div class="cam"><div class="oval"></div><span class="live">Camera on</span><span class="tag i-face-tag">Line their face up with the oval</span></div>
+    </div>
+    <div class="df"><button class="link">Skip for now</button><button class="btn btn-tint"><span class="i-upload"></span>Upload from device</button><button class="btn btn-primary"><span class="i-camera"></span>Take photo</button></div>
+  </div>
+</div>
+</section>
+<script src="app.js"></script>
+<script>
+  // drop lucide icons into the desktop shell
+  const map = {'i-home':'home','i-ev':'cal','i-scan':'scan','i-users':'users','i-chart':'chart','i-plus':'plus','i-upload':'upload','i-camera':'camera','i-x':'x'};
+  for (const [cls, k] of Object.entries(map)) document.querySelectorAll('#desktop .'+cls).forEach(e => { if (e.tagName==='BUTTON') e.innerHTML = ICON[k]; else e.outerHTML = ICON[k]; });
+  document.querySelector('#desktop .i-face-tag').insertAdjacentHTML('afterbegin', ICON.face);
+</script>
+</body>
+</html>

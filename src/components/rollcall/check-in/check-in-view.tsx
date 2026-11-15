@@ -3,12 +3,16 @@
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Ellipsis,
+  CalendarDays,
+  Camera,
+  ChevronRight,
+  Keyboard,
   Loader2,
+  Pencil,
   Plus,
   QrCode,
+  ScanLine,
   Search,
-  ShieldCheck,
 } from "lucide-react";
 
 import {
@@ -18,11 +22,8 @@ import {
   saveEvent,
 } from "@/app/actions";
 import type { DashboardData } from "@/app/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 import AttendanceView, {
   Avatar,
   MemberRow,
@@ -312,26 +313,23 @@ export default function CheckInView({
     <>
       {!currentEvent ? (
         <>
-          <section className="flex flex-col items-start justify-between gap-6 py-10 sm:flex-row sm:items-end sm:py-[51px]">
+          <section className="flex flex-col items-start justify-between gap-6 py-10 sm:flex-row sm:items-end sm:py-12">
             <div>
-              <p className="mb-2.5 text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
+              <p className="mb-2 text-[15px] font-bold text-muted-foreground">
                 Good morning, Jamie
               </p>
-              <h1 className="font-sans text-4xl font-bold leading-none tracking-[-.05em]">
+              <h1 className="font-heading text-4xl font-extrabold leading-tight tracking-[-.03em]">
                 Ready when you are.
               </h1>
             </div>
           </section>
 
-          <section className="flex min-h-[45vh] items-center justify-center">
-            <div className="flex flex-col items-center gap-5">
-              <div className="flex size-20 items-center justify-center rounded-full bg-[#f1f1f6] text-[#17171a]">
+          <section className="flex min-h-[45vh] items-center justify-center rounded-xl bg-card px-6 py-12 ring-1 ring-border">
+            <div className="flex flex-col items-center gap-5 text-center">
+              <div className="flex size-20 items-center justify-center rounded-full bg-tint text-primary">
                 <Plus className="size-10" />
               </div>
-              <Button
-                className="h-12 px-8 text-base font-bold shadow-[0_12px_24px_rgba(23,23,26,.14)]"
-                onClick={() => openEventDialog()}
-              >
+              <Button size="lg" className="px-8" onClick={() => openEventDialog()}>
                 New event
               </Button>
             </div>
@@ -350,7 +348,7 @@ export default function CheckInView({
       ) : (
         <>
           <section
-            className="relative mt-10 mb-6 flex cursor-pointer flex-col gap-4 rounded-[13px] border border-[#e7e7ea] bg-white p-4 shadow-[0_12px_35px_rgba(27,27,42,.06)] transition-shadow hover:shadow-[0_14px_38px_rgba(27,27,42,.1)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#5b5ce2] sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:py-[17px]"
+            className="relative mt-6 mb-4 flex cursor-pointer items-center gap-4 rounded-xl bg-card p-4 ring-1 ring-border transition-colors hover:ring-tint-strong sm:px-5"
             role="button"
             tabIndex={0}
             onClick={() => openEventDialog()}
@@ -362,19 +360,18 @@ export default function CheckInView({
             }}
             aria-label={`Update ${activeEvent}`}
           >
-            <div className="flex items-center gap-3">
-              <span className="size-[17px] rounded-full border-4 border-[#dff3e8] bg-[#32a06c]" />
-              <div>
-                <span className="mb-1 block text-xs font-bold uppercase tracking-[.11em] text-[#85858c]">
-                  Active event
-                </span>
-                <h2 className="text-lg font-bold tracking-[-.02em]">
-                  {activeEvent}
-                </h2>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-sm text-[#85858c]">
-              <span className="hidden sm:inline">
+            <span className="hidden size-12 shrink-0 items-center justify-center rounded-full bg-tint text-primary sm:flex">
+              <CalendarDays className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-bold text-accent-foreground">
+                <span className="size-[7px] rounded-full bg-primary" />
+                Active event
+              </span>
+              <h2 className="truncate font-heading text-xl font-extrabold leading-tight tracking-[-.02em]">
+                {activeEvent}
+              </h2>
+              <p className="text-[15px] font-medium text-muted-foreground">
                 <LocalDate
                   value={currentEvent.eventDate}
                   options={{
@@ -384,218 +381,238 @@ export default function CheckInView({
                     year: "numeric",
                   }}
                 />
-              </span>
-              <Separator orientation="vertical" className="h-4 bg-[#e7e7ea]" />
-              <Button
-                variant="ghost"
-                className="text-sm font-semibold text-[#5b5ce2] hover:bg-[#f1f1f6] hover:text-[#4748c5]"
-                onClick={(clickEvent) => {
-                  clickEvent.stopPropagation();
-                  openEventDialog();
-                }}
-              >
-                Update event
-              </Button>
+              </p>
             </div>
+            <Button
+              variant="secondary"
+              className="shrink-0"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                openEventDialog();
+              }}
+            >
+              <Pencil className="hidden sm:block" />
+              Update event
+            </Button>
           </section>
 
-          <section className="grid gap-6 lg:grid-cols-[1.28fr_1fr]">
-            <Card className="rounded-[15px] border-[#e7e7ea] shadow-[0_12px_35px_rgba(27,27,42,.06)]">
-              <CardHeader className="flex flex-row items-start justify-between p-6 pb-0">
+          <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-start">
+            <div className="rounded-xl bg-primary p-5 text-primary-foreground lg:col-start-2 lg:row-start-1">
+              <div className="flex items-center justify-between gap-3 text-[15px] font-semibold">
+                <span>Attendance</span>
+                <span className="inline-flex items-center gap-2 rounded-full bg-primary-strong px-2.5 py-1 text-[13px] font-bold">
+                  <span className="size-[7px] rounded-full bg-mint" />
+                  Today&apos;s event
+                </span>
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-4">
+                <p className="flex items-baseline gap-2">
+                  <strong className="font-heading text-[52px] font-extrabold leading-none tracking-[-.03em] tabular-nums">
+                    {attendance}
+                  </strong>
+                  <span className="text-lg font-semibold">checked in</span>
+                </p>
+                <p className="text-right text-sm font-semibold leading-tight">
+                  <strong className="block text-[22px] font-extrabold tabular-nums">
+                    {memberCount}
+                  </strong>
+                  expected
+                </p>
+              </div>
+              <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-primary-strong">
+                <span
+                  className="block h-full rounded-full bg-white transition-[width] duration-500"
+                  style={{ width: `${attendancePercentage}%` }}
+                />
+              </div>
+              <p className="mt-2 text-sm font-semibold">
+                {attendancePercentage}% of expected guests
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-card p-3 ring-1 ring-border sm:p-4 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+              <div className="flex items-center justify-between gap-3 px-1 pb-3">
                 <div>
-                  <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
+                  <span className="text-[13px] font-bold text-muted-foreground">
                     Door check-in
                   </span>
-                  <CardTitle className="mt-2 text-2xl font-bold tracking-[-.045em]">
+                  <p className="font-heading text-xl font-extrabold tracking-[-.02em]">
                     Scan a member
-                  </CardTitle>
+                  </p>
                 </div>
-                <Badge className="bg-[#f0f7f3] text-sm font-semibold text-[#32a06c] hover:bg-[#f0f7f3]">
-                  <ShieldCheck className="size-3" /> Secure
-                </Badge>
-              </CardHeader>
-              <CardContent className="p-6">
+                <span className="flex size-11 items-center justify-center rounded-full bg-tint text-primary">
+                  <ScanLine className="size-5" />
+                </span>
+              </div>
+              <div className="relative flex h-[min(60vw,300px)] min-h-[220px] items-center justify-center overflow-hidden rounded-lg bg-scanner">
                 <div
-                  className={`relative my-1 flex h-[min(52vw,280px)] min-h-[220px] items-center justify-center overflow-hidden rounded-[11px] ${
-                    isScanning && !isCheckInPending
-                      ? "bg-[#0a0a12]"
-                      : "bg-gradient-to-br from-[#eeefff] via-[#f7f7ff] to-[#fdf1ef]"
-                  }`}
+                  id="qr-reader"
+                  className="absolute inset-0 z-[1] h-full w-full"
                 >
-                  <div
-                    id="qr-reader"
-                    className="absolute inset-0 z-[1] h-full w-full"
-                  >
-                    <video
-                      ref={videoRef}
-                      aria-label="Camera preview"
-                      className={`h-full w-full rounded-[11px] object-cover ${
-                        isScanning && !isCheckInPending ? "" : "hidden"
-                      }`}
-                      muted
-                      playsInline
-                    />
-                  </div>
-                  <div className="pointer-events-none absolute z-[2] size-[126px] rounded-full border border-[#5b5ce2]/20" />
-                  {!isScanning && !isCheckInPending && (
-                    <QrCode className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 stroke-1 text-[#5b5ce2]" />
-                  )}
-                  {isCheckInPending && (
-                    <Loader2
-                      aria-hidden
-                      className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 animate-spin text-[#5b5ce2]"
-                    />
-                  )}
-                  <span className="pointer-events-none absolute z-[2] left-6 top-6 h-[17px] w-[17px] border-l-2 border-t-2 border-[#7778e0]" />
-                  <span className="pointer-events-none absolute z-[2] right-6 top-6 h-[17px] w-[17px] border-r-2 border-t-2 border-[#7778e0]" />
-                  <span className="pointer-events-none absolute z-[2] bottom-6 left-6 h-[17px] w-[17px] border-b-2 border-l-2 border-[#7778e0]" />
-                  <span className="pointer-events-none absolute z-[2] bottom-6 right-6 h-[17px] w-[17px] border-b-2 border-r-2 border-[#7778e0]" />
-                  <span
-                    className={`pointer-events-none absolute z-[2] top-[42%] h-px w-[70%] bg-gradient-to-r from-transparent via-[#5b5ce2] to-transparent ${
-                      isCheckInPending
-                        ? "opacity-0"
-                        : isScanning
-                          ? "animate-pulse"
-                          : "animate-scan-line"
+                  <video
+                    ref={videoRef}
+                    aria-label="Camera preview"
+                    className={`h-full w-full rounded-lg object-cover ${
+                      isScanning && !isCheckInPending ? "" : "hidden"
                     }`}
+                    muted
+                    playsInline
                   />
-                  {isScanning && !isCheckInPending && (
-                    <p className="absolute bottom-[17px] z-20 m-0 text-sm text-white/90 drop-shadow-sm">
-                      Center the QR in the frame…
-                    </p>
-                  )}
-                  {isCheckInPending && (
-                    <p
-                      className="absolute bottom-[17px] m-0 text-sm text-[#7777a3]"
-                      role="status"
-                      aria-live="polite"
-                    >
-                      Checking in...
-                    </p>
-                  )}
                 </div>
-                <Button
-                  className="mt-[18px] h-auto w-full bg-[#5b5ce2] py-3 text-sm font-bold text-white shadow-[0_8px_18px_rgba(91,92,226,.2)] hover:bg-[#4748c5]"
-                  onClick={startScan}
-                  disabled={isScanning || isCheckInPending}
-                  loading={isCheckInPending}
-                >
-                  {!isCheckInPending && <QrCode className="size-4" />}
-                  {isCheckInPending
-                    ? "Checking in..."
-                    : isScanning
-                      ? "Looking for a code..."
-                      : "Start camera"}
-                </Button>
+                <span className="pointer-events-none absolute left-3 top-3 z-[3] inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[13px] font-semibold text-white">
+                  <Camera className="size-3.5" />
+                  {isScanning ? "Camera on" : "Camera off"}
+                </span>
+                {!isScanning && !isCheckInPending && (
+                  <QrCode className="absolute left-1/2 top-1/2 z-10 size-14 -translate-x-1/2 -translate-y-1/2 stroke-[1.25] text-mint" />
+                )}
+                {isCheckInPending && (
+                  <Loader2
+                    aria-hidden
+                    className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 animate-spin text-mint"
+                  />
+                )}
+                <div className="pointer-events-none absolute left-1/2 top-1/2 z-[2] size-[150px] -translate-x-1/2 -translate-y-1/2">
+                  <span className="absolute left-0 top-0 size-7 rounded-tl-[10px] border-l-[3px] border-t-[3px] border-mint" />
+                  <span className="absolute right-0 top-0 size-7 rounded-tr-[10px] border-r-[3px] border-t-[3px] border-mint" />
+                  <span className="absolute bottom-0 left-0 size-7 rounded-bl-[10px] border-b-[3px] border-l-[3px] border-mint" />
+                  <span className="absolute bottom-0 right-0 size-7 rounded-br-[10px] border-b-[3px] border-r-[3px] border-mint" />
+                </div>
+                <span
+                  className={`pointer-events-none absolute z-[2] top-1/2 h-0.5 w-[130px] rounded-full bg-mint ${
+                    isCheckInPending
+                      ? "opacity-0"
+                      : isScanning
+                        ? "animate-pulse"
+                        : "animate-scan-line"
+                  }`}
+                />
+                {isScanning && !isCheckInPending && (
+                  <p className="absolute bottom-4 z-20 m-0 text-[15px] font-semibold text-white drop-shadow-sm">
+                    Center the QR in the frame…
+                  </p>
+                )}
+                {isCheckInPending && (
+                  <p
+                    className="absolute bottom-4 z-20 m-0 text-[15px] font-semibold text-white"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    Checking in...
+                  </p>
+                )}
+              </div>
+              <p className="mt-3 px-1 text-[15px] font-medium text-muted-foreground">
+                Hold the member&apos;s QR code inside the frame.
+              </p>
+              <Button
+                size="lg"
+                className="mt-3 w-full"
+                onClick={startScan}
+                disabled={isScanning || isCheckInPending}
+                loading={isCheckInPending}
+              >
+                {!isCheckInPending && <QrCode />}
+                {isCheckInPending
+                  ? "Checking in..."
+                  : isScanning
+                    ? "Looking for a code..."
+                    : "Start camera"}
+              </Button>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {isScanning && (
                   <Button
-                    variant="ghost"
-                    className="mx-auto mt-2 block h-auto text-sm text-[#85858c]"
+                    variant="outline"
+                    size="lg"
+                    className="w-full text-muted-foreground"
                     onClick={cancelScan}
                   >
                     Cancel scan
                   </Button>
                 )}
                 <Button
-                  variant="link"
-                  className="mx-auto mt-2 block h-auto p-0 text-sm font-normal text-[#85858c]"
+                  variant="secondary"
+                  size="lg"
+                  className={`w-full ${isScanning ? "" : "sm:col-span-2"}`}
                   onClick={handleManualEntry}
                   disabled={isCheckInPending}
                 >
+                  <Keyboard />
                   Enter member ID manually
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
 
-            <Card className="rounded-[15px] border-[#e7e7ea] shadow-[0_12px_35px_rgba(27,27,42,.06)]">
-              <CardHeader className="flex flex-row items-start justify-between p-6 pb-0">
-                <div>
-                  <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-                    Today&apos;s event
-                  </span>
-                  <CardTitle className="mt-2 text-2xl font-bold tracking-[-.045em]">
-                    Attendance
-                  </CardTitle>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="More options"
-                >
-                  <Ellipsis />
-                </Button>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="mb-5 mt-2 flex items-baseline gap-2">
-                  <strong className="text-[60px] font-bold leading-[.8] tracking-[-.08em]">
-                    {attendance}
-                  </strong>
-                  <span className="text-sm text-[#85858c]">
-                    members checked in
-                  </span>
-                </div>
-                <div className="h-[7px] overflow-hidden rounded-full bg-[#ededf2]">
-                  <span
-                    className="block h-full rounded-full bg-gradient-to-r from-[#5b5ce2] to-[#8d8eea]"
-                    style={{ width: `${attendancePercentage}%` }}
-                  />
-                </div>
-                <div className="mt-2 flex justify-between text-sm text-[#85858c]">
-                  <span>{attendancePercentage}% of expected guests</span>
-                  <strong className="font-semibold text-[#5d5d65]">
-                    {memberCount} expected
-                  </strong>
-                </div>
-                <Separator className="my-7 bg-[#e7e7ea]" />
-                {latestMember ? (
-                  <div className="flex items-center gap-3.5">
-                    <Avatar
-                      initials={latestMember.initials}
-                      color={latestMember.color}
-                      pictureUrl={latestMember.pictureUrl}
-                      alt={latestMember.name}
-                      size="lg"
-                    />
-                    <div className="min-w-0">
-                      <span className="mb-1 block text-xs text-[#85858c]">
-                        Last check-in
-                      </span>
-                      <strong className="block truncate text-base">
-                        {latestMember.name}
-                      </strong>
-                      <span className="block text-xs text-[#85858c]">
-                        Member ID · {latestMember.id}
-                      </span>
-                    </div>
-                    <time className="ml-auto text-xs text-[#85858c]">
-                      {formatCheckInDate(latestMember)}
-                    </time>
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#85858c]">
-                    No members checked in yet.
-                  </p>
-                )}
+            <div className="rounded-xl bg-card px-4 pb-2 pt-3 ring-1 ring-border lg:col-start-2">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="font-heading text-[17px] font-extrabold">
+                  Recent check-ins
+                </h3>
                 <Button
                   variant="link"
-                  className="mt-6 h-auto p-0 text-sm font-bold text-[#5b5ce2]"
+                  className="h-11 gap-0.5 px-0 text-[15px] font-bold"
                   onClick={() => setIsAttendanceOpen(true)}
                 >
-                  View attendance <span className="ml-1 text-base">→</span>
+                  View attendance
+                  <ChevronRight className="size-[18px]" />
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+              {latestMember ? (
+                <ol>
+                  {members.slice(0, 3).map((member, index, recent) => (
+                    <li
+                      key={member.checkInId}
+                      className="grid min-h-16 grid-cols-[20px_1fr_auto] items-center gap-3"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="relative flex h-full items-center justify-center"
+                      >
+                        <span
+                          className={`absolute w-0.5 bg-border ${
+                            index === 0 ? "top-1/2" : "top-0"
+                          } ${index === recent.length - 1 ? "bottom-1/2" : "bottom-0"}`}
+                        />
+                        <span className="relative size-3 rounded-full border-[3px] border-primary bg-card" />
+                      </span>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <Avatar
+                          initials={member.initials}
+                          color={member.color}
+                          pictureUrl={member.pictureUrl}
+                          alt={member.name}
+                          size="sm"
+                        />
+                        <div className="min-w-0">
+                          <strong className="block truncate text-base font-bold leading-tight">
+                            {member.name}
+                          </strong>
+                          <span className="block truncate text-sm font-medium text-muted-foreground tabular-nums">
+                            Member ID · {member.id}
+                          </span>
+                        </div>
+                      </div>
+                      <time className="text-sm font-semibold text-muted-foreground tabular-nums">
+                        {formatCheckInDate(member)}
+                      </time>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="pb-3 pt-1 text-[15px] text-muted-foreground">
+                  No members checked in yet.
+                </p>
+              )}
+            </div>
           </section>
 
-          <section className="mt-10">
+          <section className="mt-8">
             <div className="mb-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <h2 className="mt-2 text-2xl font-bold tracking-[-.045em]">
-                  Checked in today
-                </h2>
-              </div>
-              <div className="relative w-full sm:w-56">
-                <Search className="absolute left-2.5 top-2 size-4 text-[#85858c]" />
+              <h2 className="font-heading text-2xl font-extrabold tracking-[-.02em]">
+                Checked in today
+              </h2>
+              <div className="relative w-full sm:w-64">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
                   placeholder="Search members"
@@ -604,11 +621,11 @@ export default function CheckInView({
                   onChange={(changeEvent) =>
                     setSearch(changeEvent.target.value)
                   }
-                  className="h-9 rounded-lg border-[#e7e7ea] bg-white pl-8 text-sm"
+                  className="pl-10"
                 />
               </div>
             </div>
-            <div className="overflow-hidden rounded-[13px] border border-[#e7e7ea] bg-white shadow-[0_12px_35px_rgba(27,27,42,.06)]">
+            <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border">
               {visibleMembers.map((member) => (
                 <MemberRow
                   key={member.id}
@@ -619,7 +636,7 @@ export default function CheckInView({
                 />
               ))}
               {visibleMembers.length === 0 && (
-                <p className="px-5 py-8 text-center text-base text-[#85858c]">
+                <p className="px-5 py-8 text-center text-base text-muted-foreground">
                   No checked-in members match that search.
                 </p>
               )}

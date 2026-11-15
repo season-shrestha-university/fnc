@@ -9,10 +9,9 @@ import {
   type FormEvent,
 } from "react";
 import Image from "next/image";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import {
-  ArrowLeft,
   Camera,
   Download,
   Pencil,
@@ -24,14 +23,14 @@ import {
 } from "lucide-react";
 
 import {
-  createMember,
   deleteMember,
   updateMember,
   type DirectoryMember,
 } from "@/app/actions";
 import { Avatar } from "@/components/rollcall/check-in/attendance-view";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
-import { compressImageFileToPhoto } from "@/components/rollcall/members/member-photo-utils";
+import { CreateMemberWizardDialog } from "@/components/rollcall/members/create-member-wizard-dialog";
+import { uploadMemberPhoto } from "@/components/rollcall/members/member-photo-upload";
 import { useMemberCamera } from "@/components/rollcall/members/use-member-camera";
 import {
   getAvatarColor,
@@ -41,7 +40,6 @@ import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skel
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type MemberFormState = {
   memberId: string;
@@ -62,41 +60,6 @@ const emptyMemberForm: MemberFormState = {
   dob: "",
   pictureUrl: "",
 };
-
-const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
-
-async function uploadMemberPhoto(
-  file: File,
-  options?: { preCompressed?: boolean },
-): Promise<string> {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Please select an image file");
-  }
-
-  const compressedFile = options?.preCompressed
-    ? file
-    : await compressImageFileToPhoto(file);
-
-  if (compressedFile.size > MAX_PHOTO_BYTES) {
-    throw new Error("Member photo must be 5 MB or smaller");
-  }
-
-  const extension = compressedFile.type === "image/webp" ? "webp" : "jpg";
-  const contentType =
-    compressedFile.type === "image/webp" ? "image/webp" : "image/jpeg";
-  const path = `${crypto.randomUUID()}.${extension}`;
-  const supabase = getSupabaseBrowserClient();
-  const { error } = await supabase.storage
-    .from("member-photos")
-    .upload(path, compressedFile, { contentType, upsert: true });
-
-  if (error) {
-    throw new Error(error.message || "Unable to upload member photo");
-  }
-
-  const { data } = supabase.storage.from("member-photos").getPublicUrl(path);
-  return data.publicUrl;
-}
 
 function MembersListContent({
   initialMembers,
@@ -137,9 +100,11 @@ function MembersListContent({
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-          <QrCode className="size-8 text-[#85858c]" />
-          <p className="font-semibold">No members found</p>
-          <p className="text-sm text-[#85858c]">
+          <span className="flex size-14 items-center justify-center rounded-full bg-tint text-primary">
+            <QrCode className="size-6" />
+          </span>
+          <p className="font-heading text-lg font-extrabold">No members found</p>
+          <p className="text-[15px] text-muted-foreground">
             Add your first member to generate a QR code.
           </p>
         </CardContent>
@@ -165,12 +130,12 @@ function MembersListContent({
                   size="lg"
                 />
                 <div className="min-w-0">
-                  <p className="truncate font-bold">{member.name}</p>
-                  <p className="mt-0.5 truncate font-mono text-xs text-[#85858c]">
+                  <p className="truncate text-[17px] font-bold">{member.name}</p>
+                  <p className="mt-0.5 truncate font-mono text-sm text-muted-foreground">
                     {member.memberId}
                   </p>
                   {contactSummary && (
-                    <p className="mt-0.5 truncate text-xs text-[#85858c]">
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
                       {contactSummary}
                     </p>
                   )}
@@ -180,7 +145,8 @@ function MembersListContent({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon-sm"
+                  size="icon"
+                  className="rounded-full"
                   aria-label={`Edit ${member.name}`}
                   onClick={() => onEditMember(member)}
                 >
@@ -189,15 +155,15 @@ function MembersListContent({
                 <Button
                   type="button"
                   variant="outline"
-                  size="icon-sm"
-                  className="text-[#e76b60] hover:bg-[#fbe9e8] hover:text-[#c94d42]"
+                  size="icon"
+                  className="rounded-full text-destructive hover:bg-destructive-tint hover:text-destructive"
                   aria-label={`Delete ${member.name}`}
                   onClick={() => onDeleteMember(member)}
                 >
                   <Trash2 className="size-4" />
                 </Button>
                 <Button
-                  className="gap-2 bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
+                  variant="secondary"
                   onClick={() => onSelectMember(member)}
                 >
                   <QrCode className="size-4" />
@@ -251,6 +217,7 @@ export default function MemberDirectory({
   membersPromise?: Promise<DirectoryMember[]>;
 }) {
   const onMessage = useToast();
+  const router = useRouter();
   const [optimisticMembers, setOptimisticMembers] = useState<DirectoryMember[]>(
     [],
   );
@@ -260,6 +227,7 @@ export default function MemberDirectory({
     null,
   );
   const [qrDataUrl, setQrDataUrl] = useState("");
+  const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<DirectoryMember | null>(
     null,
@@ -336,12 +304,9 @@ export default function MemberDirectory({
 
   function openCreateDialog() {
     stopCamera();
+    setIsFormOpen(false);
     setEditingMember(null);
-    setMemberForm(emptyMemberForm);
-    setPhotoFile(null);
-    setIsCameraPhoto(false);
-    setPhotoPreviewUrl("");
-    setIsFormOpen(true);
+    setIsCreateWizardOpen(true);
   }
 
   function openEditDialog(member: DirectoryMember) {
@@ -390,43 +355,22 @@ export default function MemberDirectory({
         ? await uploadMemberPhoto(photoFile, { preCompressed: isCameraPhoto })
         : memberForm.pictureUrl;
 
-      if (editingMember) {
-        const updated = await updateMember({
-          id: editingMember.id,
-          name: memberForm.name,
-          email: memberForm.email,
-          phone: memberForm.phone,
-          address: memberForm.address,
-          dob: memberForm.dob,
-          pictureUrl,
-        });
-        setOptimisticMembers((current) => [
-          ...current.filter((item) => item.id !== updated.id),
-          updated,
-        ]);
-        closeFormDialog();
-        onMessage(`Updated ${updated.name}`, "success");
-      } else {
-        const created = await createMember({
-          memberId: memberForm.memberId,
-          name: memberForm.name,
-          email: memberForm.email,
-          phone: memberForm.phone,
-          address: memberForm.address,
-          dob: memberForm.dob,
-          pictureUrl,
-        });
-        setOptimisticMembers((current) => [...current, created]);
-        setMemberForm(emptyMemberForm);
-        setPhotoFile(null);
-        setPhotoPreviewUrl("");
-        closeFormDialog();
-        selectMember(created);
-        onMessage(
-          `Member created and QR generated for ${created.name}`,
-          "success",
-        );
-      }
+      if (!editingMember) return;
+      const updated = await updateMember({
+        id: editingMember.id,
+        name: memberForm.name,
+        email: memberForm.email,
+        phone: memberForm.phone,
+        address: memberForm.address,
+        dob: memberForm.dob,
+        pictureUrl,
+      });
+      setOptimisticMembers((current) => [
+        ...current.filter((item) => item.id !== updated.id),
+        updated,
+      ]);
+      closeFormDialog();
+      onMessage(`Updated ${updated.name}`, "success");
     } catch (error) {
       onMessage(
         error instanceof Error ? error.message : "Unable to save member",
@@ -501,27 +445,25 @@ export default function MemberDirectory({
   }
 
   return (
-    <section className="py-10">
+    <section className="py-8 sm:py-12">
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-4xl font-bold tracking-[-.05em]">
+          <h1 className="font-heading text-4xl font-extrabold tracking-[-.03em]">
             Members and QR codes.
           </h1>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <div className="relative sm:w-64">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#85858c]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-[18px] -translate-y-1/2 text-muted-foreground" />
             <Input
-              className="h-10 pl-9"
+              className="pl-10"
               placeholder="Search members"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search members"
             />
           </div>
-          <Button
-            className="h-10 gap-2 bg-[#5b5ce2] text-white hover:bg-[#4748c5]"
-            onClick={openCreateDialog}
+          <Button onClick={openCreateDialog}
           >
             <Plus className="size-4" />
             Add member
@@ -553,11 +495,25 @@ export default function MemberDirectory({
         />
       )}
 
+      <CreateMemberWizardDialog
+        open={isCreateWizardOpen}
+        onClose={() => setIsCreateWizardOpen(false)}
+        onCreated={(created) => {
+          setOptimisticMembers((current) => [...current, created]);
+          onMessage(
+            `Member created and QR generated for ${created.name}`,
+            "success",
+          );
+        }}
+        onRefresh={() => router.refresh()}
+        onMessage={onMessage}
+      />
+
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-foreground/45 p-4">
           <Card className="my-auto w-full max-w-md">
             <CardContent className="p-6">
-              <h2 className="mt-2 text-2xl font-bold">
+              <h2 className="mt-1 font-heading text-2xl font-extrabold tracking-[-.02em]">
                 {editingMember ? "Update member profile" : "Create a member QR"}
               </h2>
               <form className="mt-6 grid gap-4" onSubmit={handleSubmitMember}>
@@ -652,7 +608,7 @@ export default function MemberDirectory({
                       <video
                         ref={videoRef}
                         aria-label="Member camera preview"
-                        className="aspect-video w-full rounded-lg border border-[#e7e7ea] bg-black object-cover"
+                        className="aspect-video w-full rounded-lg bg-scanner object-cover"
                         muted
                         playsInline
                       />
@@ -683,14 +639,14 @@ export default function MemberDirectory({
                           <img
                             src={photoPreviewUrl}
                             alt="Member photo preview"
-                            className="size-20 rounded-full border border-[#e7e7ea] object-cover"
+                            className="size-20 rounded-full object-cover ring-1 ring-border"
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             className="text-xs"
-                            onClick={startCamera}
+                            onClick={() => void startCamera()}
                           >
                             Retake
                           </Button>
@@ -698,7 +654,7 @@ export default function MemberDirectory({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="text-xs text-[#85858c]"
+                            className="text-sm text-muted-foreground"
                             onClick={clearPhoto}
                           >
                             Remove photo
@@ -717,7 +673,7 @@ export default function MemberDirectory({
                           variant="outline"
                           size="sm"
                           className="shrink-0"
-                          onClick={startCamera}
+                          onClick={() => void startCamera()}
                         >
                           <Camera className="size-4" />
                           Take photo
@@ -752,13 +708,13 @@ export default function MemberDirectory({
       )}
 
       {deletingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">
           <Card className="w-full max-w-sm">
             <CardContent className="p-6">
-              <h2 className="text-xl font-bold">
+              <h2 className="font-heading text-xl font-extrabold">
                 Delete {deletingMember.name}?
               </h2>
-              <p className="mt-2 text-sm text-[#85858c]">
+              <p className="mt-2 text-[15px] text-muted-foreground">
                 This will permanently remove this member and all of their event
                 check-in records. This action cannot be undone.
               </p>
@@ -773,7 +729,7 @@ export default function MemberDirectory({
                 </Button>
                 <Button
                   type="button"
-                  className="bg-[#e76b60] text-white hover:bg-[#c94d42]"
+                  className="bg-destructive text-white hover:bg-destructive/90"
                   onClick={handleConfirmDelete}
                   loading={isDeleting}
                 >
@@ -786,16 +742,16 @@ export default function MemberDirectory({
       )}
 
       {selectedMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 p-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">
           <Card className="w-full max-w-sm">
             <CardContent className="flex flex-col items-center p-6 text-center">
-              <p className="text-xs font-bold uppercase tracking-[.11em] text-[#85858c]">
+              <p className="text-[13px] font-bold text-muted-foreground">
                 Member QR code
               </p>
-              <h2 className="mt-2 text-2xl font-bold">{selectedMember.name}</h2>
+              <h2 className="mt-1 font-heading text-2xl font-extrabold tracking-[-.02em]">{selectedMember.name}</h2>
               {qrDataUrl ? (
                 <Image
-                  className="my-5 size-64 rounded-xl border border-[#e7e7ea] p-2"
+                  className="my-5 size-64 rounded-xl p-2 ring-1 ring-border"
                   src={qrDataUrl}
                   alt={`QR code for ${selectedMember.memberId}`}
                   width={256}
@@ -803,9 +759,9 @@ export default function MemberDirectory({
                   unoptimized
                 />
               ) : (
-                <div className="my-5 size-64 animate-pulse rounded-xl bg-[#f1f1f6]" />
+                <div className="my-5 size-64 animate-pulse rounded-xl bg-muted" />
               )}
-              <p className="font-mono text-sm text-[#85858c]">
+              <p className="font-mono text-sm text-muted-foreground">
                 {selectedMember.memberId}
               </p>
               <div className="mt-6 grid w-full grid-cols-2 gap-2">

@@ -13,31 +13,46 @@ import {
   stopMediaStream,
 } from "@/components/rollcall/shared/camera-utils";
 
-const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
-  audio: false,
-  video: {
-    facingMode: { ideal: "environment" },
-    width: { ideal: 1280 },
-    height: { ideal: 720 },
-  },
-};
+export type CameraFacingMode = "user" | "environment";
+
+function buildCameraConstraints(
+  facingMode: CameraFacingMode,
+): MediaStreamConstraints {
+  return {
+    audio: false,
+    video: {
+      facingMode: { ideal: facingMode },
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+    },
+  };
+}
 
 type UseMemberCameraOptions = {
+  initialFacingMode?: CameraFacingMode;
+  notifyOnError?: boolean;
   onCapture: (file: File) => void;
   onMessage: (message: string, variant?: ToastVariant) => void;
 };
 
 export function useMemberCamera({
+  initialFacingMode = "environment",
+  notifyOnError = true,
   onCapture,
   onMessage,
 }: UseMemberCameraOptions) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sessionRef = useRef(0);
+  const facingModeRef = useRef<CameraFacingMode>(initialFacingMode);
 
+  const [facingMode, setFacingMode] =
+    useState<CameraFacingMode>(initialFacingMode);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [isStartingCamera, setIsStartingCamera] = useState(false);
   const [hasStream, setHasStream] = useState(false);
+  const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   const stopCamera = useCallback(() => {
     sessionRef.current += 1;
@@ -54,6 +69,22 @@ export function useMemberCamera({
     };
   }, [stopCamera]);
 
+  const refreshCameraCount = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      setHasMultipleCameras(false);
+      return;
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = devices.filter(
+        (device) => device.kind === "videoinput",
+      );
+      setHasMultipleCameras(videoInputs.length > 1);
+    } catch {
+      setHasMultipleCameras(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!isCameraOpen || !hasStream) return;
     const video = videoRef.current;
@@ -66,33 +97,57 @@ export function useMemberCamera({
     void Promise.resolve(video.play()).catch(() => undefined);
   }, [isCameraOpen, hasStream]);
 
-  async function startCamera() {
-    const availabilityError = checkCameraAvailability();
-    if (availabilityError) {
-      onMessage(availabilityError, "error");
-      return;
-    }
-
-    stopCamera();
-    const session = sessionRef.current;
-    setIsCameraOpen(true);
-    setIsStartingCamera(true);
-
-    try {
-      const stream = await openCameraStream(CAMERA_CONSTRAINTS);
-      if (session !== sessionRef.current) {
-        stopMediaStream(stream);
+  const startCamera = useCallback(
+    async (requestedMode?: CameraFacingMode) => {
+      const targetMode = requestedMode ?? facingModeRef.current;
+      const availabilityError = checkCameraAvailability();
+      if (availabilityError) {
+        stopCamera();
+        setCameraError(availabilityError);
+        if (notifyOnError) {
+          onMessage(availabilityError, "error");
+        }
         return;
       }
-      streamRef.current = stream;
-      setHasStream(true);
-      setIsStartingCamera(false);
-    } catch (error) {
-      if (session !== sessionRef.current) return;
+
       stopCamera();
-      onMessage(cameraErrorMessage(error), "error");
-    }
-  }
+      const session = sessionRef.current;
+      setCameraError(null);
+      setIsCameraOpen(true);
+      setIsStartingCamera(true);
+
+      try {
+        const stream = await openCameraStream(
+          buildCameraConstraints(targetMode),
+        );
+        if (session !== sessionRef.current) {
+          stopMediaStream(stream);
+          return;
+        }
+        streamRef.current = stream;
+        facingModeRef.current = targetMode;
+        setFacingMode(targetMode);
+        setHasStream(true);
+        setIsStartingCamera(false);
+        void refreshCameraCount();
+      } catch (error) {
+        if (session !== sessionRef.current) return;
+        const message = cameraErrorMessage(error);
+        stopCamera();
+        setCameraError(message);
+        if (notifyOnError) {
+          onMessage(message, "error");
+        }
+      }
+    },
+    [notifyOnError, onMessage, refreshCameraCount, stopCamera],
+  );
+
+  const switchCamera = useCallback(async () => {
+    const nextMode: CameraFacingMode =
+      facingModeRef.current === "user" ? "environment" : "user";
+    await startCamera(nextMode);
+  }, [startCamera]);
 
   async function capturePhoto() {
     const video = videoRef.current;
@@ -120,7 +175,17 @@ export function useMemberCamera({
     }
 
     try {
-      context.drawImage(video, 0, 0, target.width, target.height);
+      if (facingMode === "user") {
+        // Mirror front-camera captures horizontally to match the live preview.
+        context.save();
+        context.translate(target.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, target.width, target.height);
+        context.restore();
+      } else {
+        context.drawImage(video, 0, 0, target.width, target.height);
+      }
+
       const file = await canvasToCompressedPhotoFile(
         canvas,
         `member-photo-${Date.now()}`,
@@ -142,10 +207,15 @@ export function useMemberCamera({
 
   return {
     videoRef,
+    facingMode,
     isCameraOpen,
     isStartingCamera,
+    hasStream,
+    hasMultipleCameras,
+    cameraError,
     startCamera,
     stopCamera,
+    switchCamera,
     capturePhoto,
   };
 }
