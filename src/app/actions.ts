@@ -14,6 +14,7 @@ export type DashboardData = {
     trackedFields: string[];
   } | null;
   memberCount: number;
+  roster: DirectoryMember[];
   checkIns: Array<{
     checkInId: string;
     id: string;
@@ -139,28 +140,25 @@ export async function getDashboardData(
     .maybeSingle();
 
   if (eventError) throw new Error(getErrorMessage(eventError));
-  if (!event) return { event: null, memberCount: 0, checkIns: [] };
+  if (!event) return { event: null, memberCount: 0, roster: [], checkIns: [] };
 
-  const { data: checkIns, error: checkInsError } = await supabase
-    .from("check_ins")
-    .select("id, member_id, created_at")
-    .eq("event_id", event.id)
-    .order("created_at", { ascending: false });
+  const [
+    { data: checkIns, error: checkInsError },
+    { data: members, error: membersError },
+  ] = await Promise.all([
+    supabase
+      .from("check_ins")
+      .select("id, member_id, created_at")
+      .eq("event_id", event.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("members")
+      .select(memberSelectColumns)
+      .order("name", { ascending: true }),
+  ]);
 
   if (checkInsError) throw new Error(getErrorMessage(checkInsError));
-
-  const memberIds = (checkIns ?? []).map((checkIn) => checkIn.member_id);
-  const [
-    { data: members, error: membersError },
-    { count: memberCount, error: memberCountError },
-  ] = await Promise.all([
-    memberIds.length
-      ? supabase.from("members").select(memberSelectColumns).in("id", memberIds)
-      : Promise.resolve({ data: [], error: null }),
-    supabase.from("members").select("id", { count: "exact", head: true }),
-  ]);
   if (membersError) throw new Error(getErrorMessage(membersError));
-  if (memberCountError) throw new Error(getErrorMessage(memberCountError));
 
   const membersById = new Map(
     (members ?? []).map((member) => [member.id, member]),
@@ -177,7 +175,8 @@ export async function getDashboardData(
           )
         : [],
     },
-    memberCount: memberCount ?? 0,
+    memberCount: members?.length ?? 0,
+    roster: (members ?? []).map(mapDirectoryMember),
     checkIns: (checkIns ?? []).flatMap((checkIn) => {
       const member = membersById.get(checkIn.member_id);
       if (!member) return [];
@@ -380,7 +379,11 @@ export async function deleteEvent(eventId: string) {
   invalidateWorkspaceData();
 }
 
-export async function checkInMember(eventId: string, memberId: string) {
+export async function checkInMember(
+  eventId: string,
+  memberId: string,
+  options?: { idempotent?: boolean; createdAt?: string },
+) {
   if (!eventId || !memberId.trim()) throw new Error("Member ID is required");
 
   const supabase = await getAuthenticatedSupabase();
@@ -392,25 +395,8 @@ export async function checkInMember(eventId: string, memberId: string) {
   if (memberError) throw new Error(getErrorMessage(memberError));
   if (!member) throw new Error(`Member ${memberId.trim()} was not found`);
 
-  const { data: existing, error: existingError } = await supabase
-    .from("check_ins")
-    .select("id")
-    .eq("event_id", eventId)
-    .eq("member_id", member.id)
-    .maybeSingle();
-  if (existingError) throw new Error(getErrorMessage(existingError));
-  if (existing) throw new Error(`${member.name} is already checked in`);
-
-  const { data: checkIn, error: checkInError } = await supabase
-    .from("check_ins")
-    .insert({ event_id: eventId, member_id: member.id })
-    .select("id, created_at")
-    .single();
-  if (checkInError) throw new Error(getErrorMessage(checkInError));
-
-  invalidateWorkspaceData();
-  return {
-    checkInId: checkIn.id,
+  const formatCheckInResult = (row: { id: string; created_at: string }) => ({
+    checkInId: row.id,
     id: member.member_id,
     name: member.name,
     email: member.email ?? "",
@@ -418,8 +404,53 @@ export async function checkInMember(eventId: string, memberId: string) {
     address: member.address ?? "",
     dob: member.dob ?? "",
     pictureUrl: member.picture_url ?? "",
-    createdDate: toDateOnly(checkIn.created_at),
-  };
+    createdDate: toDateOnly(row.created_at),
+  });
+
+  const { data: existing, error: existingError } = await supabase
+    .from("check_ins")
+    .select("id, created_at")
+    .eq("event_id", eventId)
+    .eq("member_id", member.id)
+    .maybeSingle();
+  if (existingError) throw new Error(getErrorMessage(existingError));
+  if (existing) {
+    if (options?.idempotent) {
+      return formatCheckInResult(existing);
+    }
+    throw new Error(`${member.name} is already checked in`);
+  }
+
+  const insertPayload: {
+    event_id: string;
+    member_id: string;
+    created_at?: string;
+  } = { event_id: eventId, member_id: member.id };
+  if (options?.createdAt) {
+    insertPayload.created_at = options.createdAt;
+  }
+
+  const { data: checkIn, error: checkInError } = await supabase
+    .from("check_ins")
+    .insert(insertPayload)
+    .select("id, created_at")
+    .single();
+  if (checkInError) {
+    if (options?.idempotent && checkInError.code === "23505") {
+      const { data: racedExisting, error: racedError } = await supabase
+        .from("check_ins")
+        .select("id, created_at")
+        .eq("event_id", eventId)
+        .eq("member_id", member.id)
+        .maybeSingle();
+      if (racedError) throw new Error(getErrorMessage(racedError));
+      if (racedExisting) return formatCheckInResult(racedExisting);
+    }
+    throw new Error(getErrorMessage(checkInError));
+  }
+
+  invalidateWorkspaceData();
+  return formatCheckInResult(checkIn);
 }
 
 export async function removeCheckIn(checkInId: string) {

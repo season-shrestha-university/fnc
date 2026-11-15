@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { checkInMember } from "@/app/actions";
+import { checkInMember, removeCheckIn } from "@/app/actions";
+import { loadOutbox } from "@/components/rollcall/check-in/check-in-outbox";
 import CheckInView from "@/components/rollcall/check-in/check-in-view";
 import { ToastProvider } from "@/components/rollcall/layout/toast-provider";
 
@@ -33,8 +34,36 @@ describe("CheckInView", () => {
     trackedFields: ["Name", "Member ID"],
   };
 
+  const roster = [
+    {
+      id: "uuid-1",
+      memberId: "FNC-001",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      phone: "555-0100",
+      address: "10 Downing St",
+      dob: "1815-12-10",
+      pictureUrl: "https://example.com/ada.jpg",
+    },
+    {
+      id: "uuid-2",
+      memberId: "FNC-002",
+      name: "Grace Hopper",
+      email: "",
+      phone: "",
+      address: "",
+      dob: "",
+      pictureUrl: "",
+    },
+  ];
+
   beforeEach(() => {
     vi.clearAllMocks();
+    window.localStorage.clear();
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
   });
 
   it("shows member photo, name, and member ID in toast and last check-in on successful check-in", async () => {
@@ -113,5 +142,190 @@ describe("CheckInView", () => {
     expect(toast).toHaveTextContent("Grace Hopper");
     expect(toast).toHaveTextContent("Member ID · FNC-002");
     expect(toast.querySelector("img")).toBeNull();
+  });
+
+  it("checks in offline using cached roster, prevents duplicates, and syncs on reconnect", async () => {
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    vi.spyOn(window, "prompt").mockReturnValue("FNC-001");
+
+    render(
+      <ToastProvider>
+        <CheckInView
+          event={event}
+          memberCount={10}
+          roster={roster}
+          checkIns={[]}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("scan-toast")).toHaveTextContent("Ada Lovelace");
+    });
+
+    expect(checkInMember).not.toHaveBeenCalled();
+    expect(loadOutbox("evt-1")).toHaveLength(1);
+    expect(screen.getByTestId("outbox-status")).toHaveTextContent(
+      "Offline · 1 check-in waiting to sync",
+    );
+    expect(screen.getAllByLabelText("Pending sync").length).toBeGreaterThan(0);
+
+    // Duplicate scan while still pending in outbox is rejected locally.
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("scan-toast")).toHaveTextContent(
+        "Ada Lovelace is already checked in",
+      );
+    });
+
+    vi.mocked(checkInMember).mockResolvedValueOnce({
+      checkInId: "ci-server-1",
+      id: "FNC-001",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      phone: "555-0100",
+      address: "10 Downing St",
+      dob: "1815-12-10",
+      pictureUrl: "https://example.com/ada.jpg",
+      createdDate: "2026-11-20",
+    });
+
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    await waitFor(() => {
+      expect(checkInMember).toHaveBeenCalledWith(
+        "evt-1",
+        "FNC-001",
+        expect.objectContaining({ idempotent: true }),
+      );
+      expect(loadOutbox("evt-1")).toHaveLength(0);
+      expect(screen.getByTestId("outbox-status")).toHaveTextContent(
+        "All check-ins synced",
+      );
+      expect(screen.getAllByLabelText("Synced").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("removes a pending outbox check-in locally on swipe delete without calling removeCheckIn", async () => {
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    vi.spyOn(window, "prompt").mockReturnValue("FNC-002");
+
+    render(
+      <ToastProvider>
+        <CheckInView
+          event={event}
+          memberCount={10}
+          roster={roster}
+          checkIns={[]}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
+
+    await waitFor(() => {
+      expect(loadOutbox("evt-1")).toHaveLength(1);
+    });
+
+    // Open attendance view to verify row and swipe-delete
+    fireEvent.click(screen.getByRole("button", { name: "View attendance" }));
+    const rowText = screen.getAllByText("Grace Hopper")[0];
+    const rowCard = rowText.closest("div[style]") as HTMLElement;
+    expect(rowCard).toBeTruthy();
+
+    fireEvent.mouseDown(rowCard, { clientX: 200, clientY: 10 });
+    fireEvent.mouseMove(rowCard, { clientX: 80, clientY: 10 });
+    fireEvent.mouseUp(rowCard, { clientX: 80, clientY: 10 });
+
+    await waitFor(() => {
+      expect(loadOutbox("evt-1")).toHaveLength(0);
+    });
+    expect(removeCheckIn).not.toHaveBeenCalled();
+  });
+
+  it("queues delete for an already-synced check-in while offline and drains it on reconnect", async () => {
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    vi.mocked(removeCheckIn).mockResolvedValue(undefined);
+
+    render(
+      <ToastProvider>
+        <CheckInView
+          event={event}
+          memberCount={10}
+          roster={roster}
+          checkIns={[
+            {
+              checkInId: "ci-server-1",
+              id: "FNC-001",
+              name: "Ada Lovelace",
+              email: "ada@example.com",
+              phone: "555-0100",
+              address: "10 Downing St",
+              dob: "1815-12-10",
+              pictureUrl: "https://example.com/ada.jpg",
+              createdDate: "2026-11-20",
+            },
+          ]}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "View attendance" }));
+    const rowText = screen.getByText("Ada Lovelace");
+    const rowCard = rowText.closest("div[style]") as HTMLElement;
+    expect(rowCard).toBeTruthy();
+
+    fireEvent.mouseDown(rowCard, { clientX: 200, clientY: 10 });
+    fireEvent.mouseMove(rowCard, { clientX: 80, clientY: 10 });
+    fireEvent.mouseUp(rowCard, { clientX: 80, clientY: 10 });
+
+    await waitFor(() => {
+      expect(loadOutbox("evt-1")).toHaveLength(1);
+    });
+    expect(removeCheckIn).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to check-in" }));
+    expect(screen.getByTestId("outbox-status")).toHaveTextContent(
+      "Offline · 1 check-in waiting to sync",
+    );
+
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+
+    await waitFor(() => {
+      expect(removeCheckIn).toHaveBeenCalledWith("ci-server-1");
+      expect(loadOutbox("evt-1")).toHaveLength(0);
+      expect(screen.getByTestId("outbox-status")).toHaveTextContent(
+        "All check-ins synced",
+      );
+    });
   });
 });

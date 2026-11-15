@@ -33,6 +33,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 import {
+  checkInMember,
   createMember,
   deleteMember,
   getDashboardData,
@@ -211,28 +212,23 @@ describe("server actions", () => {
       }
       if (table === "members") {
         return {
-          select: (_cols: string, opts?: { count?: string; head?: boolean }) => {
-            if (opts?.head) {
-              return Promise.resolve({ count: 5, error: null });
-            }
-            return {
-              in: async () => ({
-                data: [
-                  {
-                    id: "uuid-1",
-                    member_id: "FNC-100",
-                    name: "Ada Lovelace",
-                    email: "ada@example.com",
-                    phone: "555-0100",
-                    address: "10 Downing",
-                    dob: "1815-12-10",
-                    picture_url: "https://example.com/ada.jpg",
-                  },
-                ],
-                error: null,
-              }),
-            };
-          },
+          select: () => ({
+            order: async () => ({
+              data: [
+                {
+                  id: "uuid-1",
+                  member_id: "FNC-100",
+                  name: "Ada Lovelace",
+                  email: "ada@example.com",
+                  phone: "555-0100",
+                  address: "10 Downing",
+                  dob: "1815-12-10",
+                  picture_url: "https://example.com/ada.jpg",
+                },
+              ],
+              error: null,
+            }),
+          }),
         };
       }
       throw new Error(`Unexpected table ${table}`);
@@ -245,6 +241,19 @@ describe("server actions", () => {
       eventDate: "2026-11-20",
       trackedFields: ["Name", "Member ID", "Phone"],
     });
+    expect(data.memberCount).toBe(1);
+    expect(data.roster).toEqual([
+      {
+        id: "uuid-1",
+        memberId: "FNC-100",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        phone: "555-0100",
+        address: "10 Downing",
+        dob: "1815-12-10",
+        pictureUrl: "https://example.com/ada.jpg",
+      },
+    ]);
     expect(data.checkIns).toEqual([
       {
         checkInId: "ci-1",
@@ -258,5 +267,131 @@ describe("server actions", () => {
         createdDate: "2026-11-20",
       },
     ]);
+  });
+
+  it("supports idempotent checkInMember by returning existing check-in without error", async () => {
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "members") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: "uuid-1",
+                  member_id: "FNC-100",
+                  name: "Ada Lovelace",
+                  email: "ada@example.com",
+                  phone: "555-0100",
+                  address: "10 Downing",
+                  dob: "1815-12-10",
+                  picture_url: "https://example.com/ada.jpg",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "check_ins") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({
+                  data: {
+                    id: "ci-existing",
+                    created_at: "2026-11-20T10:00:00Z",
+                  },
+                  error: null,
+                }),
+              }),
+            }),
+          }),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    await expect(checkInMember("event-1", "FNC-100")).rejects.toThrow(
+      "Ada Lovelace is already checked in",
+    );
+
+    const synced = await checkInMember("event-1", "FNC-100", {
+      idempotent: true,
+    });
+    expect(synced).toEqual({
+      checkInId: "ci-existing",
+      id: "FNC-100",
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+      phone: "555-0100",
+      address: "10 Downing",
+      dob: "1815-12-10",
+      pictureUrl: "https://example.com/ada.jpg",
+      createdDate: "2026-11-20",
+    });
+  });
+
+  it("preserves client createdAt when syncing a new check-in", async () => {
+    const insert = vi.fn().mockReturnValue({
+      select: () => ({
+        single: async () => ({
+          data: {
+            id: "ci-new",
+            created_at: "2026-11-19T23:55:00.000Z",
+          },
+          error: null,
+        }),
+      }),
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "members") {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({
+                data: {
+                  id: "uuid-1",
+                  member_id: "FNC-100",
+                  name: "Ada Lovelace",
+                  email: "",
+                  phone: "",
+                  address: "",
+                  dob: null,
+                  picture_url: "",
+                },
+                error: null,
+              }),
+            }),
+          }),
+        };
+      }
+      if (table === "check_ins") {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                maybeSingle: async () => ({ data: null, error: null }),
+              }),
+            }),
+          }),
+          insert,
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    const result = await checkInMember("event-1", "FNC-100", {
+      idempotent: true,
+      createdAt: "2026-11-19T23:55:00.000Z",
+    });
+
+    expect(insert).toHaveBeenCalledWith({
+      event_id: "event-1",
+      member_id: "uuid-1",
+      created_at: "2026-11-19T23:55:00.000Z",
+    });
+    expect(result.checkInId).toBe("ci-new");
   });
 });

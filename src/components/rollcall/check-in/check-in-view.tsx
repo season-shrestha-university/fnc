@@ -1,16 +1,26 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
   Camera,
+  Check,
   ChevronRight,
+  Clock,
+  CloudOff,
   Keyboard,
   Loader2,
   Pencil,
   Plus,
   QrCode,
+  RefreshCw,
   ScanLine,
   Search,
 } from "lucide-react";
@@ -28,6 +38,19 @@ import AttendanceView, {
   Avatar,
   MemberRow,
 } from "@/components/rollcall/check-in/attendance-view";
+import {
+  enqueueOutboxCheckIn,
+  enqueueOutboxDelete,
+  findRosterMember,
+  flushOutbox,
+  getRetryDelayMs,
+  loadCachedRoster,
+  loadOutbox,
+  mergeCheckInsWithOutbox,
+  removeOutboxCheckIn,
+  saveCachedRoster,
+  warmMemberPhotos,
+} from "@/components/rollcall/check-in/check-in-outbox";
 import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
 import EventDialogs from "@/components/rollcall/events/event-dialogs";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
@@ -63,20 +86,39 @@ function playBeep(frequency: number) {
   });
 }
 
+function subscribeOnlineStatus(callback: () => void) {
+  window.addEventListener("online", callback);
+  window.addEventListener("offline", callback);
+  return () => {
+    window.removeEventListener("online", callback);
+    window.removeEventListener("offline", callback);
+  };
+}
+
+function getOnlineSnapshot() {
+  return typeof navigator === "undefined" ? true : navigator.onLine;
+}
+
+function getServerOnlineSnapshot() {
+  return true;
+}
+
 export default function CheckInView({
   event,
   memberCount,
+  roster = [],
   checkIns,
 }: {
   event: DashboardData["event"];
   memberCount: DashboardData["memberCount"];
+  roster?: DashboardData["roster"];
   checkIns: DashboardData["checkIns"];
 }) {
   const router = useRouter();
   const showToast = useToast();
   const [, startTransition] = useTransition();
   const [members, setMembers] = useState<Member[]>(() =>
-    checkIns.map(toMember),
+    checkIns.map((checkIn) => ({ ...toMember(checkIn), syncStatus: "synced" })),
   );
   const [syncedCheckIns, setSyncedCheckIns] = useState(checkIns);
   const [currentEvent, setCurrentEvent] = useState(event);
@@ -96,13 +138,35 @@ export default function CheckInView({
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSavingEvent, setIsSavingEvent] = useState(false);
   const [isDeletingEvent, setIsDeletingEvent] = useState(false);
+  const isOnline = useSyncExternalStore(
+    subscribeOnlineStatus,
+    getOnlineSnapshot,
+    getServerOnlineSnapshot,
+  );
+  const [pendingCount, setPendingCount] = useState(0);
+  const [isSyncingOutbox, setIsSyncingOutbox] = useState(false);
+  const [justSynced, setJustSynced] = useState(false);
   const checkInPendingRef = useRef(false);
+  const syncInFlightRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
+  const retryAttemptRef = useRef(0);
+  const justSyncedTimerRef = useRef<number | null>(null);
+  const triggerSyncRef = useRef<() => Promise<void>>(async () => undefined);
+
+  const activeEvent = currentEvent?.name ?? "";
+  const eventId = currentEvent?.id ?? "";
 
   // Server data is the source of truth: adopt it whenever the route re-renders
-  // (e.g. after a Server Action revalidates), keeping optimistic updates between.
+  // (e.g. after a Server Action revalidates), preserving any still-pending outbox items.
   if (syncedCheckIns !== checkIns) {
     setSyncedCheckIns(checkIns);
-    setMembers(checkIns.map(toMember));
+    setMembers(
+      mergeCheckInsWithOutbox(
+        checkIns.map(toMember),
+        typeof window !== "undefined" && eventId ? loadOutbox(eventId) : [],
+        eventId,
+      ),
+    );
   }
   if (syncedEvent !== event) {
     setSyncedEvent(event);
@@ -113,8 +177,138 @@ export default function CheckInView({
   const attendancePercentage = memberCount
     ? Math.round((attendance / memberCount) * 100)
     : 0;
-  const activeEvent = currentEvent?.name ?? "";
-  const eventId = currentEvent?.id ?? "";
+
+  async function triggerOutboxSync() {
+    if (!eventId || syncInFlightRef.current) return;
+    const queued = loadOutbox(eventId);
+    setPendingCount(queued.length);
+    if (queued.length === 0) return;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      return;
+    }
+
+    if (retryTimerRef.current !== null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    syncInFlightRef.current = true;
+    setIsSyncingOutbox(true);
+    try {
+      const result = await flushOutbox({
+        eventId,
+        syncFn: (item) =>
+          checkInMember(item.eventId, item.memberId, {
+            idempotent: true,
+            createdAt: item.createdAt,
+          }),
+        deleteFn: (item) => removeCheckIn(item.checkInId),
+        onItemSynced: (clientCheckInId, synced) => {
+          setMembers((current) =>
+            current.map((member) =>
+              member.checkInId === clientCheckInId
+                ? { ...toMember(synced), syncStatus: "synced" }
+                : member,
+            ),
+          );
+        },
+      });
+      setPendingCount(result.remainingCount);
+      if (result.remainingCount === 0) {
+        retryAttemptRef.current = 0;
+        if (result.syncedCount > 0) {
+          setJustSynced(true);
+          if (justSyncedTimerRef.current !== null) {
+            window.clearTimeout(justSyncedTimerRef.current);
+          }
+          justSyncedTimerRef.current = window.setTimeout(() => {
+            setJustSynced(false);
+          }, 3000);
+        }
+      } else if (result.hadError) {
+        retryAttemptRef.current += 1;
+        const delay = getRetryDelayMs(retryAttemptRef.current);
+        retryTimerRef.current = window.setTimeout(() => {
+          void triggerSyncRef.current();
+        }, delay);
+      }
+    } finally {
+      syncInFlightRef.current = false;
+      setIsSyncingOutbox(false);
+    }
+  }
+
+  useEffect(() => {
+    triggerSyncRef.current = triggerOutboxSync;
+  });
+
+  useEffect(() => {
+    if (roster.length > 0) {
+      saveCachedRoster(roster);
+    }
+    const controller = new AbortController();
+    const photoUrls = (roster.length > 0 ? roster : loadCachedRoster()).map(
+      (member) => member.pictureUrl,
+    );
+    void warmMemberPhotos(photoUrls, { signal: controller.signal });
+    return () => controller.abort();
+  }, [roster]);
+
+  useEffect(() => {
+    if (!eventId) return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      const outboxItems = loadOutbox(eventId);
+      setPendingCount(outboxItems.length);
+      if (outboxItems.length > 0) {
+        setMembers(
+          mergeCheckInsWithOutbox(
+            syncedCheckIns.map(toMember),
+            outboxItems,
+            eventId,
+          ),
+        );
+        void triggerSyncRef.current();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, syncedCheckIns]);
+
+  useEffect(() => {
+    function handleOnline() {
+      void triggerSyncRef.current();
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void triggerSyncRef.current();
+      }
+    }
+
+    window.addEventListener("online", handleOnline);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (retryTimerRef.current !== null) {
+        window.clearTimeout(retryTimerRef.current);
+      }
+      if (justSyncedTimerRef.current !== null) {
+        window.clearTimeout(justSyncedTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    function handleBeforeUnload(unloadEvent: BeforeUnloadEvent) {
+      unloadEvent.preventDefault();
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [pendingCount]);
 
   function openEventDialog() {
     setEventName(currentEvent?.name ?? "");
@@ -124,11 +318,53 @@ export default function CheckInView({
   }
 
   async function handleScan(memberId: string) {
-    if (!eventId || checkInPendingRef.current) return;
+    const normalizedId = memberId.trim();
+    if (!eventId || !normalizedId || checkInPendingRef.current) return;
+
+    const activeRoster = roster.length > 0 ? roster : loadCachedRoster();
+    if (activeRoster.length > 0) {
+      const rosterMember = findRosterMember(activeRoster, normalizedId);
+      if (!rosterMember) {
+        playBeep(440);
+        showToast(`Member ${normalizedId} was not found`, "error");
+        return;
+      }
+
+      const alreadyCheckedIn =
+        members.some((member) => member.id === rosterMember.memberId) ||
+        loadOutbox(eventId).some(
+          (item) =>
+            item.kind !== "delete" && item.memberId === rosterMember.memberId,
+        );
+      if (alreadyCheckedIn) {
+        playBeep(440);
+        showToast(`${rosterMember.name} is already checked in`, "error");
+        return;
+      }
+
+      const queued = enqueueOutboxCheckIn(eventId, rosterMember);
+      setJustSynced(false);
+      setMembers((current) => [queued.memberSnapshot, ...current]);
+      setPendingCount(loadOutbox(eventId).length);
+      playBeep(880);
+      showToast("Checked in", "success", {
+        member: {
+          id: queued.memberSnapshot.id,
+          name: queued.memberSnapshot.name,
+          initials: queued.memberSnapshot.initials,
+          color: queued.memberSnapshot.color,
+          pictureUrl: queued.memberSnapshot.pictureUrl,
+        },
+      });
+      void triggerOutboxSync();
+      return;
+    }
+
+    // Fallback when no roster is available locally.
     checkInPendingRef.current = true;
     setIsCheckInPending(true);
     try {
-      const checkIn = await checkInMember(eventId, memberId);
+      const checkIn = await checkInMember(eventId, normalizedId);
       const member: Member = {
         checkInId: checkIn.checkInId,
         id: checkIn.id,
@@ -141,6 +377,7 @@ export default function CheckInView({
         address: checkIn.address,
         dob: checkIn.dob,
         pictureUrl: checkIn.pictureUrl,
+        syncStatus: "synced",
       };
       setMembers((current) => [member, ...current]);
       playBeep(880);
@@ -176,19 +413,24 @@ export default function CheckInView({
   }
 
   async function deleteMember(checkInId: string) {
-    try {
-      await removeCheckIn(checkInId);
+    if (checkInId.startsWith("local-")) {
+      removeOutboxCheckIn(checkInId);
       setMembers((current) =>
         current.filter((member) => member.checkInId !== checkInId),
       );
-      showToast("Member removed from today’s check-ins", "success");
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Unable to remove check-in",
-        "error",
-      );
-      throw error;
+      setPendingCount(loadOutbox(eventId).length);
+      showToast("Pending check-in removed", "success");
+      return;
     }
+
+    enqueueOutboxDelete(eventId, checkInId);
+    setJustSynced(false);
+    setMembers((current) =>
+      current.filter((member) => member.checkInId !== checkInId),
+    );
+    setPendingCount(loadOutbox(eventId).length);
+    showToast("Member removed from today’s check-ins", "success");
+    void triggerOutboxSync();
   }
 
   async function downloadExcel() {
@@ -396,6 +638,55 @@ export default function CheckInView({
             </Button>
           </section>
 
+          {(!isOnline || pendingCount > 0 || isSyncingOutbox || justSynced) && (
+            <div
+              role="status"
+              aria-live="polite"
+              data-testid="outbox-status"
+              className={`mb-4 flex items-center justify-between gap-3 rounded-xl px-4 py-2.5 text-sm font-semibold ring-1 ${
+                !isOnline || pendingCount > 0
+                  ? "bg-[#fbeedd] text-[#83551c] ring-[#f0d5b1]"
+                  : "bg-tint text-primary-strong ring-tint-strong"
+              }`}
+            >
+              <span className="inline-flex items-center gap-2">
+                {!isOnline ? (
+                  <CloudOff className="size-4 shrink-0" aria-hidden="true" />
+                ) : isSyncingOutbox ? (
+                  <Loader2
+                    className="size-4 shrink-0 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : pendingCount > 0 ? (
+                  <Clock className="size-4 shrink-0" aria-hidden="true" />
+                ) : (
+                  <Check className="size-4 shrink-0" aria-hidden="true" />
+                )}
+                <span>
+                  {!isOnline
+                    ? pendingCount > 0
+                      ? `Offline · ${pendingCount} check-in${pendingCount === 1 ? "" : "s"} waiting to sync`
+                      : "Offline · Scans saved locally"
+                    : isSyncingOutbox
+                      ? `Syncing ${pendingCount} check-in${pendingCount === 1 ? "" : "s"}...`
+                      : pendingCount > 0
+                        ? `${pendingCount} check-in${pendingCount === 1 ? "" : "s"} waiting to sync`
+                        : "All check-ins synced"}
+                </span>
+              </span>
+              {isOnline && pendingCount > 0 && !isSyncingOutbox && (
+                <button
+                  type="button"
+                  onClick={() => void triggerOutboxSync()}
+                  className="inline-flex items-center gap-1 rounded-lg bg-white/70 px-2.5 py-1 text-xs font-bold text-[#83551c] transition-colors hover:bg-white"
+                >
+                  <RefreshCw className="size-3" aria-hidden="true" />
+                  Sync now
+                </button>
+              )}
+            </div>
+          )}
+
           <section className="grid gap-4 lg:grid-cols-[1.2fr_1fr] lg:items-start">
             <div className="rounded-xl bg-primary p-5 text-primary-foreground lg:col-start-2 lg:row-start-1">
               <div className="flex items-center justify-between gap-3 text-[15px] font-semibold">
@@ -592,9 +883,28 @@ export default function CheckInView({
                           </span>
                         </div>
                       </div>
-                      <time className="text-sm font-semibold text-muted-foreground tabular-nums">
-                        {formatCheckInDate(member)}
-                      </time>
+                      <div className="flex items-center gap-2">
+                        <time className="text-sm font-semibold text-muted-foreground tabular-nums">
+                          {formatCheckInDate(member)}
+                        </time>
+                        {member.syncStatus === "pending" ? (
+                          <span
+                            className="inline-flex size-6 items-center justify-center rounded-full bg-[#fbeedd] text-[#83551c]"
+                            aria-label="Pending sync"
+                            title="Waiting to sync"
+                          >
+                            <Clock className="size-3.5" aria-hidden="true" />
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex size-6 items-center justify-center rounded-full bg-tint text-primary"
+                            aria-label="Synced"
+                            title="Synced"
+                          >
+                            <Check className="size-3.5" aria-hidden="true" />
+                          </span>
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ol>
