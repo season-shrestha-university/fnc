@@ -1,13 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockCreateMember, mockUpdateMember, mockDeleteMember, mockShowToast } =
-  vi.hoisted(() => ({
-    mockCreateMember: vi.fn(),
-    mockUpdateMember: vi.fn(),
-    mockDeleteMember: vi.fn(),
-    mockShowToast: vi.fn(),
-  }));
+const {
+  mockCreateMember,
+  mockUpdateMember,
+  mockDeleteMember,
+  mockShowToast,
+  mockStorageUpload,
+} = vi.hoisted(() => ({
+  mockCreateMember: vi.fn(),
+  mockUpdateMember: vi.fn(),
+  mockDeleteMember: vi.fn(),
+  mockShowToast: vi.fn(),
+  mockStorageUpload: vi.fn().mockResolvedValue({ error: null }),
+}));
 
 vi.mock("@/app/actions", () => ({
   createMember: mockCreateMember,
@@ -23,9 +29,9 @@ vi.mock("@/lib/supabase/client", () => ({
   getSupabaseBrowserClient: () => ({
     storage: {
       from: () => ({
-        upload: vi.fn().mockResolvedValue({ error: null }),
+        upload: mockStorageUpload,
         getPublicUrl: () => ({
-          data: { publicUrl: "https://example.com/photo.jpg" },
+          data: { publicUrl: "https://example.com/photo.webp" },
         }),
       }),
     },
@@ -166,13 +172,13 @@ describe("MemberDirectory", () => {
       vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
         drawImage,
       } as unknown as CanvasRenderingContext2D);
-      vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
-        (callback) => {
-          callback(new Blob(["jpeg-bytes"], { type: "image/jpeg" }));
-        },
-      );
+      const toBlob = vi
+        .spyOn(HTMLCanvasElement.prototype, "toBlob")
+        .mockImplementation((callback) => {
+          callback(new Blob(["webp-bytes"], { type: "image/webp" }));
+        });
 
-      return { getUserMedia, stopTrack, drawImage };
+      return { getUserMedia, stopTrack, drawImage, toBlob };
     }
 
     function markVideoReady() {
@@ -195,7 +201,8 @@ describe("MemberDirectory", () => {
     }
 
     it("captures a camera photo and submits it when creating a member", async () => {
-      const { getUserMedia, stopTrack, drawImage } = setupCameraEnvironment();
+      const { getUserMedia, stopTrack, drawImage, toBlob } =
+        setupCameraEnvironment();
       mockCreateMember.mockResolvedValue({
         id: "uuid-3",
         memberId: "FNC-003",
@@ -204,7 +211,7 @@ describe("MemberDirectory", () => {
         phone: "",
         address: "",
         dob: "",
-        pictureUrl: "https://example.com/photo.jpg",
+        pictureUrl: "https://example.com/photo.webp",
       });
 
       render(<MemberDirectory initialMembers={sampleMembers} />);
@@ -220,7 +227,7 @@ describe("MemberDirectory", () => {
         expect(getUserMedia).toHaveBeenCalledWith({
           audio: false,
           video: {
-            facingMode: { ideal: "user" },
+            facingMode: { ideal: "environment" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -235,7 +242,21 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Capture" }));
 
       await waitFor(() => {
-        expect(drawImage).toHaveBeenCalled();
+        expect(drawImage).toHaveBeenCalledWith(
+          expect.any(HTMLVideoElement),
+          0,
+          0,
+          600,
+          450,
+        );
+        expect(toBlob).toHaveBeenCalledWith(
+          expect.any(Function),
+          "image/webp",
+          expect.any(Number),
+        );
+        const quality = toBlob.mock.calls[0]?.[2];
+        expect(quality).toBeGreaterThanOrEqual(0.75);
+        expect(quality).toBeLessThanOrEqual(0.8);
         expect(stopTrack).toHaveBeenCalled();
         expect(screen.getByAltText("Member photo preview")).toHaveAttribute(
           "src",
@@ -251,7 +272,7 @@ describe("MemberDirectory", () => {
         expect(mockCreateMember).toHaveBeenCalledWith(
           expect.objectContaining({
             name: "Katherine Johnson",
-            pictureUrl: "https://example.com/photo.jpg",
+            pictureUrl: "https://example.com/photo.webp",
           }),
         );
       });
@@ -355,6 +376,182 @@ describe("MemberDirectory", () => {
         );
       });
       expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+    });
+  });
+
+  describe("photo file upload", () => {
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    const originalCreateObjectUrl = URL.createObjectURL;
+    const originalRevokeObjectUrl = URL.revokeObjectURL;
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      globalThis.createImageBitmap = originalCreateImageBitmap;
+      URL.createObjectURL = originalCreateObjectUrl;
+      URL.revokeObjectURL = originalRevokeObjectUrl;
+    });
+
+    it("compresses an uploaded image file to WebP before storing", async () => {
+      const closeBitmap = vi.fn();
+      globalThis.createImageBitmap = vi.fn().mockResolvedValue({
+        width: 800,
+        height: 600,
+        close: closeBitmap,
+      } as unknown as ImageBitmap);
+      URL.createObjectURL = vi.fn(() => "blob:selected-photo");
+      URL.revokeObjectURL = vi.fn();
+
+      const drawImage = vi.fn();
+      vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        drawImage,
+      } as unknown as CanvasRenderingContext2D);
+      vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+        (callback) => {
+          callback(new Blob(["webp-bytes"], { type: "image/webp" }));
+        },
+      );
+
+      mockCreateMember.mockResolvedValue({
+        id: "uuid-4",
+        memberId: "FNC-004",
+        name: "Alan Turing",
+        email: "",
+        phone: "",
+        address: "",
+        dob: "",
+        pictureUrl: "https://example.com/photo.webp",
+      });
+
+      render(<MemberDirectory initialMembers={sampleMembers} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.change(screen.getByLabelText("Name *"), {
+        target: { value: "Alan Turing" },
+      });
+
+      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
+      const pngFile = new File(["png-data"], "alan.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [pngFile] } });
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Create & generate QR" }),
+      );
+
+      await waitFor(() => {
+        expect(mockStorageUpload).toHaveBeenCalledWith(
+          expect.stringMatching(/\.webp$/),
+          expect.objectContaining({ type: "image/webp" }),
+          { contentType: "image/webp", upsert: true },
+        );
+      });
+      expect(mockCreateMember).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Alan Turing",
+          pictureUrl: "https://example.com/photo.webp",
+        }),
+      );
+      expect(closeBitmap).toHaveBeenCalled();
+    });
+
+    it("rejects non-image files and unconvertible images without uploading", async () => {
+      URL.createObjectURL = vi.fn(() => "blob:selected-photo");
+      URL.revokeObjectURL = vi.fn();
+
+      render(<MemberDirectory initialMembers={sampleMembers} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.change(screen.getByLabelText("Name *"), {
+        target: { value: "Margaret Hamilton" },
+      });
+
+      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
+      const nonImage = new File(["hello"], "notes.txt", { type: "text/plain" });
+      fireEvent.change(fileInput, { target: { files: [nonImage] } });
+
+      expect(mockShowToast).toHaveBeenCalledWith(
+        "Please select an image file",
+        "error",
+      );
+      expect(mockStorageUpload).not.toHaveBeenCalled();
+
+      globalThis.createImageBitmap = vi
+        .fn()
+        .mockRejectedValue(new Error("Corrupt image"));
+      const corruptImage = new File(["bad"], "broken.jpg", {
+        type: "image/jpeg",
+      });
+      fireEvent.change(fileInput, { target: { files: [corruptImage] } });
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Create & generate QR" }),
+      );
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          "Unable to read the selected image file.",
+          "error",
+        );
+      });
+      expect(mockStorageUpload).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+    });
+
+    it("falls back to compressed JPEG when WebP encoding is unsupported", async () => {
+      globalThis.createImageBitmap = vi.fn().mockResolvedValue({
+        width: 1200,
+        height: 900,
+        close: vi.fn(),
+      } as unknown as ImageBitmap);
+      URL.createObjectURL = vi.fn(() => "blob:selected-photo");
+      URL.revokeObjectURL = vi.fn();
+
+      const drawImage = vi.fn();
+      vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        drawImage,
+      } as unknown as CanvasRenderingContext2D);
+      vi.spyOn(HTMLCanvasElement.prototype, "toBlob").mockImplementation(
+        (callback, mimeType) => {
+          if (mimeType === "image/webp") {
+            callback(new Blob(["png-fallback"], { type: "image/png" }));
+            return;
+          }
+          callback(new Blob(["jpeg-bytes"], { type: "image/jpeg" }));
+        },
+      );
+
+      mockCreateMember.mockResolvedValue({
+        id: "uuid-5",
+        memberId: "FNC-005",
+        name: "Annie Easley",
+        email: "",
+        phone: "",
+        address: "",
+        dob: "",
+        pictureUrl: "https://example.com/photo.jpg",
+      });
+
+      render(<MemberDirectory initialMembers={sampleMembers} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Add member" }));
+      fireEvent.change(screen.getByLabelText("Name *"), {
+        target: { value: "Annie Easley" },
+      });
+
+      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
+      const pngFile = new File(["png-data"], "annie.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [pngFile] } });
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Create & generate QR" }),
+      );
+
+      await waitFor(() => {
+        expect(mockStorageUpload).toHaveBeenCalledWith(
+          expect.stringMatching(/\.jpg$/),
+          expect.objectContaining({ type: "image/jpeg" }),
+          { contentType: "image/jpeg", upsert: true },
+        );
+      });
     });
   });
 });

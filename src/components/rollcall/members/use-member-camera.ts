@@ -3,16 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
 import {
+  calculateScaledDimensions,
+  canvasToCompressedPhotoFile,
+} from "@/components/rollcall/members/member-photo-utils";
+import {
   cameraErrorMessage,
   checkCameraAvailability,
   openCameraStream,
   stopMediaStream,
 } from "@/components/rollcall/shared/camera-utils";
 
-const PORTRAIT_CONSTRAINTS: MediaStreamConstraints = {
+const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   audio: false,
   video: {
-    facingMode: { ideal: "user" },
+    facingMode: { ideal: "environment" },
     width: { ideal: 1280 },
     height: { ideal: 720 },
   },
@@ -75,7 +79,7 @@ export function useMemberCamera({
     setIsStartingCamera(true);
 
     try {
-      const stream = await openCameraStream(PORTRAIT_CONSTRAINTS);
+      const stream = await openCameraStream(CAMERA_CONSTRAINTS);
       if (session !== sessionRef.current) {
         stopMediaStream(stream);
         return;
@@ -102,29 +106,38 @@ export function useMemberCamera({
       return;
     }
 
+    const target = calculateScaledDimensions(
+      video.videoWidth,
+      video.videoHeight,
+    );
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = target.width;
+    canvas.height = target.height;
     const context = canvas.getContext("2d");
     if (!context) {
       onMessage("Unable to capture photo in this browser.", "error");
       return;
     }
 
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.9),
-    );
-    if (!blob) {
-      onMessage("Unable to capture photo. Please try again.", "error");
-      return;
+    try {
+      context.drawImage(video, 0, 0, target.width, target.height);
+      const file = await canvasToCompressedPhotoFile(
+        canvas,
+        `member-photo-${Date.now()}`,
+      );
+      stopCamera();
+      onCapture(file);
+    } catch (error) {
+      onMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to capture photo. Please try again.",
+        "error",
+      );
+    } finally {
+      canvas.width = 0;
+      canvas.height = 0;
     }
-
-    const file = new File([blob], `member-photo-${Date.now()}.jpg`, {
-      type: "image/jpeg",
-    });
-    stopCamera();
-    onCapture(file);
   }
 
   return {

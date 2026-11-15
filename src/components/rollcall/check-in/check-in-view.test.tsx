@@ -57,7 +57,9 @@ describe("CheckInView", () => {
       </ToastProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Enter member ID manually" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("scan-toast")).toBeInTheDocument();
@@ -73,7 +75,9 @@ describe("CheckInView", () => {
 
     const images = screen.getAllByRole("img", { name: "Ada Lovelace" });
     expect(images.length).toBeGreaterThanOrEqual(2);
-    expect(screen.getAllByText("Member ID · FNC-001").length).toBeGreaterThanOrEqual(2);
+    expect(
+      screen.getAllByText("Member ID · FNC-001").length,
+    ).toBeGreaterThanOrEqual(2);
   });
 
   it("shows initials fallback with name and member ID when checked-in member has no photo", async () => {
@@ -96,7 +100,9 @@ describe("CheckInView", () => {
       </ToastProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Enter member ID manually" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByTestId("scan-toast")).toBeInTheDocument();

@@ -31,6 +31,7 @@ import {
 } from "@/app/actions";
 import { Avatar } from "@/components/rollcall/check-in/attendance-view";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
+import { compressImageFileToPhoto } from "@/components/rollcall/members/member-photo-utils";
 import { useMemberCamera } from "@/components/rollcall/members/use-member-camera";
 import {
   getAvatarColor,
@@ -64,20 +65,30 @@ const emptyMemberForm: MemberFormState = {
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-async function uploadMemberPhoto(file: File): Promise<string> {
+async function uploadMemberPhoto(
+  file: File,
+  options?: { preCompressed?: boolean },
+): Promise<string> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Please select an image file");
   }
-  if (file.size > MAX_PHOTO_BYTES) {
+
+  const compressedFile = options?.preCompressed
+    ? file
+    : await compressImageFileToPhoto(file);
+
+  if (compressedFile.size > MAX_PHOTO_BYTES) {
     throw new Error("Member photo must be 5 MB or smaller");
   }
 
-  const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const extension = compressedFile.type === "image/webp" ? "webp" : "jpg";
+  const contentType =
+    compressedFile.type === "image/webp" ? "image/webp" : "image/jpeg";
   const path = `${crypto.randomUUID()}.${extension}`;
   const supabase = getSupabaseBrowserClient();
   const { error } = await supabase.storage
     .from("member-photos")
-    .upload(path, file, { upsert: true });
+    .upload(path, compressedFile, { contentType, upsert: true });
 
   if (error) {
     throw new Error(error.message || "Unable to upload member photo");
@@ -259,6 +270,7 @@ export default function MemberDirectory({
   const [memberForm, setMemberForm] =
     useState<MemberFormState>(emptyMemberForm);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [isCameraPhoto, setIsCameraPhoto] = useState(false);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -288,11 +300,12 @@ export default function MemberDirectory({
     };
   }, [photoPreviewUrl]);
 
-  function applyPhotoFile(file: File | null) {
+  function applyPhotoFile(file: File | null, fromCamera = false) {
     if (photoPreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(photoPreviewUrl);
     }
     setPhotoFile(file);
+    setIsCameraPhoto(Boolean(file && fromCamera));
     setPhotoPreviewUrl(
       file ? URL.createObjectURL(file) : memberForm.pictureUrl,
     );
@@ -306,7 +319,7 @@ export default function MemberDirectory({
     stopCamera,
     capturePhoto,
   } = useMemberCamera({
-    onCapture: applyPhotoFile,
+    onCapture: (file) => applyPhotoFile(file, true),
     onMessage,
   });
 
@@ -326,6 +339,7 @@ export default function MemberDirectory({
     setEditingMember(null);
     setMemberForm(emptyMemberForm);
     setPhotoFile(null);
+    setIsCameraPhoto(false);
     setPhotoPreviewUrl("");
     setIsFormOpen(true);
   }
@@ -343,12 +357,19 @@ export default function MemberDirectory({
       pictureUrl: member.pictureUrl,
     });
     setPhotoFile(null);
+    setIsCameraPhoto(false);
     setPhotoPreviewUrl(member.pictureUrl);
     setIsFormOpen(true);
   }
 
   function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    applyPhotoFile(event.target.files?.[0] ?? null);
+    const selectedFile = event.target.files?.[0] ?? null;
+    if (selectedFile && !selectedFile.type.startsWith("image/")) {
+      event.target.value = "";
+      onMessage("Please select an image file", "error");
+      return;
+    }
+    applyPhotoFile(selectedFile, false);
   }
 
   function clearPhoto() {
@@ -356,6 +377,7 @@ export default function MemberDirectory({
       URL.revokeObjectURL(photoPreviewUrl);
     }
     setPhotoFile(null);
+    setIsCameraPhoto(false);
     setPhotoPreviewUrl("");
     setMemberForm((current) => ({ ...current, pictureUrl: "" }));
   }
@@ -365,7 +387,7 @@ export default function MemberDirectory({
     setIsSaving(true);
     try {
       const pictureUrl = photoFile
-        ? await uploadMemberPhoto(photoFile)
+        ? await uploadMemberPhoto(photoFile, { preCompressed: isCameraPhoto })
         : memberForm.pictureUrl;
 
       if (editingMember) {
