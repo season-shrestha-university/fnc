@@ -55,15 +55,9 @@ export default function EventDialogs({
       <Dialog open={isEventOpen} onOpenChange={onEventOpenChange}>
         <DialogContent>
           <DialogHeader>
-            <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-              {activeEvent ? "Active event" : "New event"}
-            </span>
             <DialogTitle className="text-2xl font-bold tracking-[-.045em]">
               {activeEvent ? "Update your event" : "Set up your event"}
             </DialogTitle>
-            <DialogDescription>
-              Choose what you need to record at the door.
-            </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4">
             <label className="grid gap-2 text-sm font-semibold">
@@ -91,7 +85,10 @@ export default function EventDialogs({
                   requiredTrackedFields as readonly string[]
                 ).includes(field);
                 return (
-                  <label key={field} className="flex items-center gap-2 text-sm">
+                  <label
+                    key={field}
+                    className="flex items-center gap-2 text-sm"
+                  >
                     <input
                       type="checkbox"
                       checked={isRequired || trackedFields.includes(field)}

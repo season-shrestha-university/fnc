@@ -535,17 +535,9 @@ export default function MemberDirectory({
         <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/20 p-5">
           <Card className="my-auto w-full max-w-md">
             <CardContent className="p-6">
-              <p className="text-xs font-bold uppercase tracking-[.11em] text-[#85858c]">
-                {editingMember ? "Edit member" : "New member"}
-              </p>
               <h2 className="mt-2 text-2xl font-bold">
                 {editingMember ? "Update member profile" : "Create a member QR"}
               </h2>
-              <p className="mt-2 text-sm text-[#85858c]">
-                {editingMember
-                  ? "Member ID is locked so existing QR codes stay valid."
-                  : "Leave Member ID blank to generate one automatically."}
-              </p>
               <form className="mt-6 grid gap-4" onSubmit={handleSubmitMember}>
                 <label className="grid gap-2 text-sm font-semibold">
                   Name *

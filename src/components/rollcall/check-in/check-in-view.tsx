@@ -23,7 +23,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import AttendanceView, { Avatar, MemberRow } from "@/components/rollcall/check-in/attendance-view";
+import AttendanceView, {
+  Avatar,
+  MemberRow,
+} from "@/components/rollcall/check-in/attendance-view";
 import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
 import EventDialogs from "@/components/rollcall/events/event-dialogs";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
@@ -382,10 +385,7 @@ export default function CheckInView({
                   }}
                 />
               </span>
-              <Separator
-                orientation="vertical"
-                className="h-4 bg-[#e7e7ea]"
-              />
+              <Separator orientation="vertical" className="h-4 bg-[#e7e7ea]" />
               <Button
                 variant="ghost"
                 className="text-sm font-semibold text-[#5b5ce2] hover:bg-[#f1f1f6] hover:text-[#4748c5]"
@@ -590,9 +590,6 @@ export default function CheckInView({
           <section className="mt-10">
             <div className="mb-4 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
               <div>
-                <span className="text-sm font-bold uppercase tracking-[.11em] text-[#85858c]">
-                  Recent activity
-                </span>
                 <h2 className="mt-2 text-2xl font-bold tracking-[-.045em]">
                   Checked in today
                 </h2>
@@ -604,7 +601,9 @@ export default function CheckInView({
                   placeholder="Search members"
                   aria-label="Search checked-in members"
                   value={search}
-                  onChange={(changeEvent) => setSearch(changeEvent.target.value)}
+                  onChange={(changeEvent) =>
+                    setSearch(changeEvent.target.value)
+                  }
                   className="h-9 rounded-lg border-[#e7e7ea] bg-white pl-8 text-sm"
                 />
               </div>
@@ -616,9 +615,7 @@ export default function CheckInView({
                   member={member}
                   trackedFields={currentEvent.trackedFields}
                   onDelete={deleteMember}
-                  isLast={
-                    member === visibleMembers[visibleMembers.length - 1]
-                  }
+                  isLast={member === visibleMembers[visibleMembers.length - 1]}
                 />
               ))}
               {visibleMembers.length === 0 && (
