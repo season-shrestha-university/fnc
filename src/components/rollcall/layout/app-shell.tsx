@@ -131,6 +131,52 @@ function ActiveNavLinks({
   );
 }
 
+function DrawerFooter({
+  isSigningOut,
+  onSignOut,
+  onHelp,
+}: {
+  isSigningOut: boolean;
+  onSignOut: () => void;
+  onHelp: () => void;
+}) {
+  return (
+    <div className="mt-auto flex flex-col gap-1 pt-4">
+      <Button
+        variant="ghost"
+        className="min-h-12 w-full justify-start gap-3 px-3 py-2.5 text-[15px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground"
+        onClick={onHelp}
+      >
+        <CircleHelp className="size-5 text-muted-foreground" />
+        Help
+      </Button>
+
+      <Button
+        variant="ghost"
+        aria-label="Sign out"
+        className="min-h-12 w-full justify-start gap-3 px-3 py-2.5 text-[15px] font-bold text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        onClick={onSignOut}
+        loading={isSigningOut}
+      >
+        {!isSigningOut && <LogOut className="size-5" />}
+        <span>{isSigningOut ? "Signing out..." : "Sign out"}</span>
+      </Button>
+
+      <div className="mt-2 flex items-center gap-3 border-t border-border px-1.5 pt-[18px]">
+        <Avatar initials="SS" small />
+        <div className="min-w-0">
+          <strong className="block truncate text-[15px] font-bold">
+            Season Shrestha
+          </strong>
+          <span className="mt-0.5 block text-xs font-semibold text-muted-foreground">
+            Workspace · Volunteer
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const showToast = useToast();
@@ -138,6 +184,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   async function signOut() {
+    setIsMobileNavOpen(false);
     setIsSigningOut(true);
     try {
       const { error } = await getSupabaseBrowserClient().auth.signOut();
@@ -166,25 +213,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </div>
 
           <NavLinks label="Primary navigation" />
-          <div className="mt-auto">
-            <Button
-              variant="ghost"
-              className="min-h-12 w-full justify-start gap-3 px-3 py-2.5 text-[15px] font-bold text-muted-foreground"
-              onClick={() => showToast("Help center coming soon")}
-            >
-              <CircleHelp className="size-5 text-muted-foreground" />
-              Help
-            </Button>
-            <div className="mt-4 flex items-center gap-3 border-t border-border px-1.5 pt-[18px]">
-              <Avatar initials="JM" small />
-              <div>
-                <strong className="block text-[15px] font-bold">Season Shrestha</strong>
-                <span className="mt-0.5 block text-sm text-muted-foreground">
-                  Volunteer
-                </span>
-              </div>
-            </div>
-          </div>
+          <DrawerFooter
+            isSigningOut={isSigningOut}
+            onSignOut={() => void signOut()}
+            onHelp={() => showToast("Help center coming soon")}
+          />
         </aside>
 
         {isMobileNavOpen && (
@@ -196,7 +229,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
               type="button"
             />
             <aside className="relative flex h-full w-72 flex-col rounded-r-2xl bg-card px-4 py-6 shadow-xl">
-              <div className="mb-10 flex items-center justify-between gap-2 px-2">
+              <div className="mb-8 flex items-center justify-between gap-2 px-2">
                 <Logo />
                 <Button
                   aria-label="Close menu"
@@ -212,43 +245,36 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 label="Mobile navigation"
                 onNavigate={() => setIsMobileNavOpen(false)}
               />
+              <DrawerFooter
+                isSigningOut={isSigningOut}
+                onSignOut={() => void signOut()}
+                onHelp={() => {
+                  setIsMobileNavOpen(false);
+                  showToast("Help center coming soon");
+                }}
+              />
             </aside>
           </div>
         )}
 
         <div className="mx-auto w-full max-w-[1180px] px-4 pb-20 sm:px-8 lg:px-12">
-          <header className="flex h-20 items-center justify-between">
+          <header className="flex h-16 items-center justify-between lg:hidden">
             <div className="flex items-center gap-3">
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-full bg-card ring-1 ring-border lg:hidden"
+                className="rounded-full bg-card ring-1 ring-border"
                 aria-expanded={isMobileNavOpen}
                 aria-label="Open menu"
                 onClick={() => setIsMobileNavOpen(true)}
               >
                 <Menu />
               </Button>
-              <span className="flex items-center gap-2.5 font-heading text-lg font-bold tracking-[-.03em] lg:hidden">
+              <span className="flex items-center gap-2.5 font-heading text-lg font-bold tracking-[-.03em]">
                 <RollCallLogo compact />
                 RollCall
               </span>
-              <span className="hidden text-[15px] font-semibold text-muted-foreground lg:inline">
-                Workspace
-              </span>
             </div>
-            <Button
-              aria-label="Sign out"
-              className="gap-2 rounded-full bg-card px-4 text-muted-foreground ring-1 ring-border hover:text-foreground"
-              onClick={() => void signOut()}
-              variant="ghost"
-              loading={isSigningOut}
-            >
-              {!isSigningOut && <LogOut className="size-4" />}
-              <span className="hidden sm:inline">
-                {isSigningOut ? "Signing out..." : "Sign out"}
-              </span>
-            </Button>
           </header>
           <main>{children}</main>
         </div>
