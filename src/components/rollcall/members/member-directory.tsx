@@ -5,14 +5,11 @@ import {
   use,
   useEffect,
   useState,
-  type ChangeEvent,
-  type FormEvent,
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import {
-  Camera,
   Download,
   Pencil,
   Plus,
@@ -24,14 +21,12 @@ import {
 
 import {
   deleteMember,
-  updateMember,
   type DirectoryMember,
 } from "@/app/actions";
 import { Avatar } from "@/components/rollcall/check-in/attendance-view";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
 import { CreateMemberWizardDialog } from "@/components/rollcall/members/create-member-wizard-dialog";
-import { uploadMemberPhoto } from "@/components/rollcall/members/member-photo-upload";
-import { useMemberCamera } from "@/components/rollcall/members/use-member-camera";
+import { EditMemberDialog } from "@/components/rollcall/members/edit-member-dialog";
 import {
   getAvatarColor,
   getInitials,
@@ -40,26 +35,6 @@ import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skel
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-
-type MemberFormState = {
-  memberId: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  dob: string;
-  pictureUrl: string;
-};
-
-const emptyMemberForm: MemberFormState = {
-  memberId: "",
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  dob: "",
-  pictureUrl: "",
-};
 
 function MembersListContent({
   initialMembers,
@@ -228,19 +203,12 @@ export default function MemberDirectory({
   );
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [isCreateWizardOpen, setIsCreateWizardOpen] = useState(false);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<DirectoryMember | null>(
     null,
   );
   const [deletingMember, setDeletingMember] = useState<DirectoryMember | null>(
     null,
   );
-  const [memberForm, setMemberForm] =
-    useState<MemberFormState>(emptyMemberForm);
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [isCameraPhoto, setIsCameraPhoto] = useState(false);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloadingQr, setIsDownloadingQr] = useState(false);
   const [isPrintingQr, setIsPrintingQr] = useState(false);
@@ -260,125 +228,18 @@ export default function MemberDirectory({
       );
   }, [onMessage, selectedMember]);
 
-  useEffect(() => {
-    return () => {
-      if (photoPreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(photoPreviewUrl);
-      }
-    };
-  }, [photoPreviewUrl]);
-
-  function applyPhotoFile(file: File | null, fromCamera = false) {
-    if (photoPreviewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(photoPreviewUrl);
-    }
-    setPhotoFile(file);
-    setIsCameraPhoto(Boolean(file && fromCamera));
-    setPhotoPreviewUrl(
-      file ? URL.createObjectURL(file) : memberForm.pictureUrl,
-    );
-  }
-
-  const {
-    videoRef,
-    isCameraOpen,
-    isStartingCamera,
-    startCamera,
-    stopCamera,
-    capturePhoto,
-  } = useMemberCamera({
-    onCapture: (file) => applyPhotoFile(file, true),
-    onMessage,
-  });
-
   function selectMember(member: DirectoryMember) {
     setQrDataUrl("");
     setSelectedMember(member);
   }
 
-  function closeFormDialog() {
-    stopCamera();
-    setIsFormOpen(false);
-    setEditingMember(null);
-  }
-
   function openCreateDialog() {
-    stopCamera();
-    setIsFormOpen(false);
     setEditingMember(null);
     setIsCreateWizardOpen(true);
   }
 
   function openEditDialog(member: DirectoryMember) {
-    stopCamera();
     setEditingMember(member);
-    setMemberForm({
-      memberId: member.memberId,
-      name: member.name,
-      email: member.email,
-      phone: member.phone,
-      address: member.address,
-      dob: member.dob,
-      pictureUrl: member.pictureUrl,
-    });
-    setPhotoFile(null);
-    setIsCameraPhoto(false);
-    setPhotoPreviewUrl(member.pictureUrl);
-    setIsFormOpen(true);
-  }
-
-  function handlePhotoChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFile = event.target.files?.[0] ?? null;
-    if (selectedFile && !selectedFile.type.startsWith("image/")) {
-      event.target.value = "";
-      onMessage("Please select an image file", "error");
-      return;
-    }
-    applyPhotoFile(selectedFile, false);
-  }
-
-  function clearPhoto() {
-    if (photoPreviewUrl.startsWith("blob:")) {
-      URL.revokeObjectURL(photoPreviewUrl);
-    }
-    setPhotoFile(null);
-    setIsCameraPhoto(false);
-    setPhotoPreviewUrl("");
-    setMemberForm((current) => ({ ...current, pictureUrl: "" }));
-  }
-
-  async function handleSubmitMember(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setIsSaving(true);
-    try {
-      const pictureUrl = photoFile
-        ? await uploadMemberPhoto(photoFile, { preCompressed: isCameraPhoto })
-        : memberForm.pictureUrl;
-
-      if (!editingMember) return;
-      const updated = await updateMember({
-        id: editingMember.id,
-        name: memberForm.name,
-        email: memberForm.email,
-        phone: memberForm.phone,
-        address: memberForm.address,
-        dob: memberForm.dob,
-        pictureUrl,
-      });
-      setOptimisticMembers((current) => [
-        ...current.filter((item) => item.id !== updated.id),
-        updated,
-      ]);
-      closeFormDialog();
-      onMessage(`Updated ${updated.name}`, "success");
-    } catch (error) {
-      onMessage(
-        error instanceof Error ? error.message : "Unable to save member",
-        "error",
-      );
-    } finally {
-      setIsSaving(false);
-    }
   }
 
   async function handleConfirmDelete() {
@@ -509,203 +370,17 @@ export default function MemberDirectory({
         onMessage={onMessage}
       />
 
-      {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-foreground/45 p-4">
-          <Card className="my-auto w-full max-w-md">
-            <CardContent className="p-6">
-              <h2 className="mt-1 font-heading text-2xl font-extrabold tracking-[-.02em]">
-                {editingMember ? "Update member profile" : "Create a member QR"}
-              </h2>
-              <form className="mt-6 grid gap-4" onSubmit={handleSubmitMember}>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Name *
-                  <Input
-                    required
-                    value={memberForm.name}
-                    onChange={(event) =>
-                      setMemberForm((current) => ({
-                        ...current,
-                        name: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Member ID
-                  <Input
-                    placeholder="Example: MEMBER-001"
-                    value={memberForm.memberId}
-                    readOnly={Boolean(editingMember)}
-                    disabled={Boolean(editingMember)}
-                    onChange={(event) =>
-                      setMemberForm((current) => ({
-                        ...current,
-                        memberId: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Email
-                    <Input
-                      type="email"
-                      placeholder="Optional"
-                      value={memberForm.email}
-                      onChange={(event) =>
-                        setMemberForm((current) => ({
-                          ...current,
-                          email: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-semibold">
-                    Phone
-                    <Input
-                      type="tel"
-                      placeholder="Optional"
-                      value={memberForm.phone}
-                      onChange={(event) =>
-                        setMemberForm((current) => ({
-                          ...current,
-                          phone: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                </div>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Address
-                  <Input
-                    placeholder="Optional"
-                    value={memberForm.address}
-                    onChange={(event) =>
-                      setMemberForm((current) => ({
-                        ...current,
-                        address: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <label className="grid gap-2 text-sm font-semibold">
-                  Date of birth
-                  <Input
-                    type="date"
-                    value={memberForm.dob}
-                    onChange={(event) =>
-                      setMemberForm((current) => ({
-                        ...current,
-                        dob: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-                <div className="grid gap-2 text-sm font-semibold">
-                  <label htmlFor="member-photo-input">Photo</label>
-                  {isCameraOpen ? (
-                    <div className="grid gap-2">
-                      <video
-                        ref={videoRef}
-                        aria-label="Member camera preview"
-                        className="aspect-video w-full rounded-lg bg-scanner object-cover"
-                        muted
-                        playsInline
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          onClick={capturePhoto}
-                          disabled={isStartingCamera}
-                        >
-                          {isStartingCamera ? "Starting camera..." : "Capture"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={stopCamera}
-                        >
-                          Cancel camera
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {photoPreviewUrl && (
-                        <div className="flex items-center gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={photoPreviewUrl}
-                            alt="Member photo preview"
-                            className="size-20 rounded-full object-cover ring-1 ring-border"
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => void startCamera()}
-                          >
-                            Retake
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="text-sm text-muted-foreground"
-                            onClick={clearPhoto}
-                          >
-                            Remove photo
-                          </Button>
-                        </div>
-                      )}
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                        <Input
-                          id="member-photo-input"
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoChange}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="shrink-0"
-                          onClick={() => void startCamera()}
-                        >
-                          <Camera className="size-4" />
-                          Take photo
-                        </Button>
-                      </div>
-                    </>
-                  )}
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={closeFormDialog}
-                    disabled={isSaving}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" loading={isSaving}>
-                    {isSaving
-                      ? editingMember
-                        ? "Saving..."
-                        : "Creating..."
-                      : editingMember
-                        ? "Save changes"
-                        : "Create & generate QR"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <EditMemberDialog
+        member={editingMember}
+        onClose={() => setEditingMember(null)}
+        onUpdated={(updated) => {
+          setOptimisticMembers((current) => [
+            ...current.filter((item) => item.id !== updated.id),
+            updated,
+          ]);
+        }}
+        onMessage={onMessage}
+      />
 
       {deletingMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">

@@ -21,143 +21,143 @@ import type {
 } from "@/components/rollcall/members/create-member-wizard-types";
 
 type ContactStepProps = {
+  mode?: "create" | "edit";
   values: WizardFormValues;
   errors: WizardErrors;
   photoPreviewUrl: string;
-  isSubmitting: boolean;
+  isSubmitting?: boolean;
   headingRef: RefObject<HTMLHeadingElement | null>;
   onChange: (field: keyof WizardFormValues, value: string) => void;
-  onGoPhoto: () => void;
-  onBack: () => void;
-  onSubmit: () => void;
+  onGoPhoto?: () => void;
+  onBack?: () => void;
+  onSubmit?: () => void;
 };
 
 export function ContactStep({
+  mode = "create",
   values,
   errors,
   photoPreviewUrl,
-  isSubmitting,
+  isSubmitting = false,
   headingRef,
   onChange,
   onGoPhoto,
   onBack,
   onSubmit,
 }: ContactStepProps) {
+  const isEdit = mode === "edit";
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit();
+    onSubmit?.();
   }
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      className="flex min-h-0 flex-1 flex-col"
-    >
-      <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2
-            ref={headingRef}
-            tabIndex={-1}
-            className="font-heading text-2xl font-extrabold tracking-[-.02em] outline-none"
+  const content = (
+    <div className="flex-1 overflow-y-auto px-5 py-4 sm:px-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="font-heading text-2xl font-extrabold tracking-[-.02em] outline-none"
+        >
+          Contact details
+        </h2>
+        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
+          Optional
+        </span>
+      </div>
+
+      {errors.form && (
+        <div
+          role="alert"
+          className="mt-4 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-semibold text-destructive"
+        >
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{errors.form}</span>
+        </div>
+      )}
+
+      <div className="mt-4 grid gap-4">
+        <div className="grid gap-1.5">
+          <label
+            htmlFor="wizard-member-email"
+            className="text-sm font-bold text-foreground"
           >
-            Contact details
-          </h2>
-          <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-xs font-bold text-muted-foreground">
-            Optional
-          </span>
+            Email
+          </label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="wizard-member-email"
+              type="email"
+              placeholder="name@example.com"
+              value={values.email}
+              aria-invalid={Boolean(errors.email)}
+              aria-describedby={
+                errors.email ? "wizard-email-error" : undefined
+              }
+              onChange={(event) => onChange("email", event.target.value)}
+              className={`h-14 pl-11 text-base ${
+                errors.email
+                  ? "border-2 border-destructive focus-visible:ring-destructive/20"
+                  : ""
+              }`}
+            />
+          </div>
+          {errors.email && (
+            <p
+              id="wizard-email-error"
+              role="alert"
+              className="flex items-center gap-1.5 text-sm font-bold text-destructive"
+            >
+              <AlertCircle className="size-4 shrink-0" />
+              {errors.email}
+            </p>
+          )}
         </div>
 
-        {errors.form && (
-          <div
-            role="alert"
-            className="mt-4 flex items-center gap-2 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm font-semibold text-destructive"
+        <div className="grid gap-1.5">
+          <label
+            htmlFor="wizard-member-phone"
+            className="text-sm font-bold text-foreground"
           >
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{errors.form}</span>
-          </div>
-        )}
-
-        <div className="mt-4 grid gap-4">
-          <div className="grid gap-1.5">
-            <label
-              htmlFor="wizard-member-email"
-              className="text-sm font-bold text-foreground"
-            >
-              Email
-            </label>
-            <div className="relative">
-              <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="wizard-member-email"
-                type="email"
-                placeholder="name@example.com"
-                value={values.email}
-                aria-invalid={Boolean(errors.email)}
-                aria-describedby={
-                  errors.email ? "wizard-email-error" : undefined
-                }
-                onChange={(event) => onChange("email", event.target.value)}
-                className={`h-14 pl-11 text-base ${
-                  errors.email
-                    ? "border-2 border-destructive focus-visible:ring-destructive/20"
-                    : ""
-                }`}
-              />
-            </div>
-            {errors.email && (
-              <p
-                id="wizard-email-error"
-                role="alert"
-                className="flex items-center gap-1.5 text-sm font-bold text-destructive"
-              >
-                <AlertCircle className="size-4 shrink-0" />
-                {errors.email}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-1.5">
-            <label
-              htmlFor="wizard-member-phone"
-              className="text-sm font-bold text-foreground"
-            >
-              Phone
-            </label>
-            <div className="relative">
-              <Phone className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                id="wizard-member-phone"
-                type="tel"
-                placeholder="07700 900000"
-                value={values.phone}
-                onChange={(event) => onChange("phone", event.target.value)}
-                className="h-14 pl-11 text-base"
-              />
-            </div>
-          </div>
-
-          <div className="grid gap-1.5">
-            <label
-              htmlFor="wizard-member-address"
-              className="text-sm font-bold text-foreground"
-            >
-              Address
-            </label>
-            <div className="relative">
-              <MapPin className="pointer-events-none absolute left-3.5 top-4 size-5 text-muted-foreground" />
-              <textarea
-                id="wizard-member-address"
-                rows={2}
-                placeholder="House, street, town, postcode"
-                value={values.address}
-                onChange={(event) => onChange("address", event.target.value)}
-                className="min-h-[84px] w-full resize-none rounded-xl border border-input bg-card py-3.5 pl-11 pr-3.5 text-base font-medium text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-              />
-            </div>
+            Phone
+          </label>
+          <div className="relative">
+            <Phone className="pointer-events-none absolute left-3.5 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="wizard-member-phone"
+              type="tel"
+              placeholder="07700 900000"
+              value={values.phone}
+              onChange={(event) => onChange("phone", event.target.value)}
+              className="h-14 pl-11 text-base"
+            />
           </div>
         </div>
 
+        <div className="grid gap-1.5">
+          <label
+            htmlFor="wizard-member-address"
+            className="text-sm font-bold text-foreground"
+          >
+            Address
+          </label>
+          <div className="relative">
+            <MapPin className="pointer-events-none absolute left-3.5 top-4 size-5 text-muted-foreground" />
+            <textarea
+              id="wizard-member-address"
+              rows={2}
+              placeholder="House, street, town, postcode"
+              value={values.address}
+              onChange={(event) => onChange("address", event.target.value)}
+              className="min-h-[84px] w-full resize-none rounded-xl border border-input bg-card py-3.5 pl-11 pr-3.5 text-base font-medium text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            />
+          </div>
+        </div>
+      </div>
+
+      {!isEdit && (
         <div className="mt-5">
           <h3 className="text-sm font-bold text-muted-foreground">
             You’re adding
@@ -227,7 +227,21 @@ export function ContactStep({
             )}
           </div>
         </div>
-      </div>
+      )}
+    </div>
+  );
+
+  if (isEdit) {
+    return content;
+  }
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      {content}
 
       <footer className="sticky bottom-0 z-10 border-t border-border bg-card px-5 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:static sm:px-6 sm:py-4">
         <div className="grid grid-cols-[auto_1fr] gap-2.5 sm:flex sm:justify-end">

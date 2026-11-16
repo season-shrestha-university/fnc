@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RollCall — Edit member, three sections</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage" id="overview">
+  <header class="stage-head">
+    <div class="brand"><img src="assets/rollcall-mark-32-teal.svg" alt=""><div><p class="stage-kicker">RollCall · Members</p><h1 class="stage-title">Edit a member, without the walk</h1></div></div>
+    <p class="stage-kicker">Same three sections as create · jump to any one · save from anywhere</p>
+  </header>
+  <div class="row">
+    <figure class="shot"><div class="phone" id="m-photo"></div><figcaption><b>Photo</b> Current photo first, not the camera. Retake, upload, or remove.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-details"></div><figcaption><b>Details</b> A change marks the tab with a dot and enables Save.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-error"></div><figcaption><b>Name</b> Required. Empty it and the error appears immediately. Save stays off.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-contact"></div><figcaption><b>Contact</b> Optional email, phone and address. Save is still in the footer.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-camera"></div><figcaption><b>Camera</b> Same preview as create, only after Retake or Take photo.</figcaption></figure>
+    <figure class="shot"><div class="phone" id="m-discard"></div><figcaption><b>Discard</b> Cancel or close with unsaved edits asks before losing them.</figcaption></figure>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>
