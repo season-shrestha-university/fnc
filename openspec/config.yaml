@@ -1,13 +1,12 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+# Project context
+context: |
+  - Product Vision: Mobile-first web application for community center volunteers to manage members, events, and fast attendance check-in via QR code scanning.
+  - Target Audience & UX: Used primarily on smartphones at the door by volunteers with varying digital literacy. Prioritize large touch targets, high contrast, responsive layouts, and streamlined flows.
+  - Stack Baseline: Next.js (App Router), React 19, TypeScript, Tailwind CSS, and shadcn/ui with Light theme as default.
+  - Backend & Auth: Supabase (Auth with server-side cookies, PostgreSQL database, and Supabase Storage for photos).
+  - Offline & Performance: Prioritize offline resilience for event check-ins (client-side outbox queue and local caching) and client-side photo optimization (WebP compression with JPEG fallback).
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
