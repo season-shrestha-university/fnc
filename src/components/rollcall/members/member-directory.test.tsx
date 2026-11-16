@@ -91,6 +91,7 @@ describe("MemberDirectory", () => {
     render(<MemberDirectory initialMembers={sampleMembers} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Edit Ada Lovelace" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Details" }));
 
     const memberIdInput = screen.getByLabelText("Member ID");
     expect(memberIdInput).toHaveAttribute("readonly");
@@ -174,9 +175,17 @@ describe("MemberDirectory", () => {
       URL.createObjectURL = vi.fn(() => "blob:captured-photo");
       URL.revokeObjectURL = vi.fn();
 
+      const save = vi.fn();
+      const translate = vi.fn();
+      const scale = vi.fn();
       const drawImage = vi.fn();
+      const restore = vi.fn();
       vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        save,
+        translate,
+        scale,
         drawImage,
+        restore,
       } as unknown as CanvasRenderingContext2D);
       const toBlob = vi
         .spyOn(HTMLCanvasElement.prototype, "toBlob")
@@ -218,17 +227,13 @@ describe("MemberDirectory", () => {
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
-      fireEvent.change(screen.getByLabelText("Name *"), {
-        target: { value: "Katherine Johnson" },
-      });
-
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
         expect(getUserMedia).toHaveBeenCalledWith({
           audio: false,
           video: {
-            facingMode: { ideal: "environment" },
+            facingMode: { ideal: "user" },
             width: { ideal: 1280 },
             height: { ideal: 720 },
           },
@@ -236,11 +241,13 @@ describe("MemberDirectory", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Capture" })).toBeEnabled();
+        expect(
+          screen.getByRole("button", { name: "Take photo" }),
+        ).toBeEnabled();
       });
 
       markVideoReady();
-      fireEvent.click(screen.getByRole("button", { name: "Capture" }));
+      fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
         expect(drawImage).toHaveBeenCalledWith(
@@ -259,12 +266,15 @@ describe("MemberDirectory", () => {
         expect(quality).toBeGreaterThanOrEqual(0.75);
         expect(quality).toBeLessThanOrEqual(0.8);
         expect(stopTrack).toHaveBeenCalled();
-        expect(screen.getByAltText("Member photo preview")).toHaveAttribute(
-          "src",
-          "blob:captured-photo",
-        );
+        expect(
+          screen.getByAltText("Current photo of Grace Hopper"),
+        ).toHaveAttribute("src", "blob:captured-photo");
       });
 
+      fireEvent.click(screen.getByRole("tab", { name: /Details/ }));
+      fireEvent.change(screen.getByLabelText("Name *"), {
+        target: { value: "Katherine Johnson" },
+      });
       fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
@@ -292,7 +302,9 @@ describe("MemberDirectory", () => {
 
       fireEvent.click(screen.getByRole("button", { name: "Cancel camera" }));
       expect(stopTrack).toHaveBeenCalledTimes(1);
-      expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Upload new photo"),
+      ).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
       await waitFor(() => {
@@ -313,11 +325,13 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("button", { name: "Capture" })).toBeEnabled();
+        expect(
+          screen.getByRole("button", { name: "Take photo" }),
+        ).toBeEnabled();
       });
 
       markVideoReady();
-      fireEvent.click(screen.getByRole("button", { name: "Capture" }));
+      fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
         expect(
@@ -345,11 +359,14 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
-      expect(mockShowToast).toHaveBeenCalledWith(
-        "Camera access requires HTTPS. Open this app over HTTPS on your phone.",
-        "error",
-      );
-      expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+      expect(
+        screen.getByText("Camera not available. Upload a photo instead."),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Upload new photo"),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel camera" }));
 
       Object.defineProperty(window, "isSecureContext", {
         configurable: true,
@@ -369,12 +386,13 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Take photo" }));
 
       await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          "Camera permission was denied. Allow camera access in browser settings.",
-          "error",
-        );
+        expect(
+          screen.getByText("Camera not available. Upload a photo instead."),
+        ).toBeInTheDocument();
       });
-      expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Upload new photo"),
+      ).toBeInTheDocument();
     });
   });
 
@@ -419,13 +437,17 @@ describe("MemberDirectory", () => {
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
+
+      const fileInput = screen.getByLabelText(
+        "Upload new photo",
+      ) as HTMLInputElement;
+      const pngFile = new File(["png-data"], "alan.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [pngFile] } });
+
+      fireEvent.click(screen.getByRole("tab", { name: "Details" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Alan Turing" },
       });
-
-      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
-      const pngFile = new File(["png-data"], "alan.png", { type: "image/png" });
-      fireEvent.change(fileInput, { target: { files: [pngFile] } });
 
       fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
@@ -452,11 +474,10 @@ describe("MemberDirectory", () => {
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
-      fireEvent.change(screen.getByLabelText("Name *"), {
-        target: { value: "Margaret Hamilton" },
-      });
 
-      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
+      const fileInput = screen.getByLabelText(
+        "Upload new photo",
+      ) as HTMLInputElement;
       const nonImage = new File(["hello"], "notes.txt", { type: "text/plain" });
       fireEvent.change(fileInput, { target: { files: [nonImage] } });
 
@@ -477,13 +498,14 @@ describe("MemberDirectory", () => {
       fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
       await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          "Unable to read the selected image file.",
-          "error",
-        );
+        expect(
+          screen.getByText("Unable to read the selected image file."),
+        ).toBeInTheDocument();
       });
       expect(mockStorageUpload).not.toHaveBeenCalled();
-      expect(screen.getByLabelText("Photo")).toBeInTheDocument();
+      expect(
+        screen.getByLabelText("Upload new photo"),
+      ).toBeInTheDocument();
     });
 
     it("falls back to compressed JPEG when WebP encoding is unsupported", async () => {
@@ -518,13 +540,17 @@ describe("MemberDirectory", () => {
       render(<MemberDirectory initialMembers={sampleMembers} />);
 
       fireEvent.click(screen.getByRole("button", { name: "Edit Grace Hopper" }));
+
+      const fileInput = screen.getByLabelText(
+        "Upload new photo",
+      ) as HTMLInputElement;
+      const pngFile = new File(["png-data"], "annie.png", { type: "image/png" });
+      fireEvent.change(fileInput, { target: { files: [pngFile] } });
+
+      fireEvent.click(screen.getByRole("tab", { name: "Details" }));
       fireEvent.change(screen.getByLabelText("Name *"), {
         target: { value: "Annie Easley" },
       });
-
-      const fileInput = screen.getByLabelText("Photo") as HTMLInputElement;
-      const pngFile = new File(["png-data"], "annie.png", { type: "image/png" });
-      fireEvent.change(fileInput, { target: { files: [pngFile] } });
 
       fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
 

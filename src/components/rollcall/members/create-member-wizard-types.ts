@@ -1,7 +1,8 @@
 import type { DirectoryMember } from "@/app/actions";
 
 export type WizardStep = "photo" | "details" | "contact" | "done";
-export type PhotoSubState = "camera" | "captured";
+export type EditSection = "photo" | "details" | "contact";
+export type PhotoSubState = "camera" | "captured" | "portrait";
 
 export type WizardFormValues = {
   name: string;
@@ -52,10 +53,47 @@ export function hasAnyWizardValue(
   );
 }
 
-export function validateDetailsFields(values: WizardFormValues): WizardErrors {
+export const EDIT_SECTIONS: EditSection[] = ["photo", "details", "contact"];
+
+export type EditSnapshot = {
+  values: WizardFormValues;
+  pictureUrl: string;
+};
+
+export type EditDirtyMap = Record<EditSection, boolean>;
+
+export function getEditDirtyMap(
+  snapshot: EditSnapshot,
+  values: WizardFormValues,
+  pictureUrl: string,
+  photoFile: File | null,
+): EditDirtyMap {
+  return {
+    photo: photoFile !== null || pictureUrl !== snapshot.pictureUrl,
+    details:
+      values.name.trim() !== snapshot.values.name.trim() ||
+      values.dob.trim() !== snapshot.values.dob.trim(),
+    contact:
+      values.email !== snapshot.values.email ||
+      values.phone !== snapshot.values.phone ||
+      values.address !== snapshot.values.address,
+  };
+}
+
+export function isEditDirty(dirty: EditDirtyMap): boolean {
+  return dirty.photo || dirty.details || dirty.contact;
+}
+
+export function validateDetailsFields(
+  values: WizardFormValues,
+  mode: "create" | "edit" = "create",
+): WizardErrors {
   const errors: WizardErrors = {};
   if (!values.name.trim()) {
-    errors.name = "Enter the member's name to continue";
+    errors.name =
+      mode === "edit"
+        ? "Enter the member’s name"
+        : "Enter the member's name to continue";
   }
   return errors;
 }
@@ -73,15 +111,21 @@ export function validateContactFields(values: WizardFormValues): WizardErrors {
 
 export function routeServerErrorToStep(
   errorMessage: string,
+  mode: "create" | "edit" = "create",
 ): { step: WizardStep; errors: WizardErrors } {
   const lower = errorMessage.toLowerCase();
-  if (lower.includes("member id")) {
+  if (mode === "create" && lower.includes("member id")) {
     return { step: "details", errors: { memberId: errorMessage } };
   }
   if (lower.includes("member name") || lower.includes("name is required")) {
     return {
       step: "details",
-      errors: { name: "Enter the member's name to continue" },
+      errors: {
+        name:
+          mode === "edit"
+            ? "Enter the member’s name"
+            : "Enter the member's name to continue",
+      },
     };
   }
   if (lower.includes("email")) {
