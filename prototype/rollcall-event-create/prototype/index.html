@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RollCall — Create event, two-step flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main class="stage" id="overview">
+  <header class="stage-head">
+    <div class="brand"><img src="assets/rollcall-mark-32-teal.svg" alt=""><div><p class="stage-kicker">RollCall · Events</p><h1 class="stage-title">Create an event, in two steps</h1></div></div>
+    <p class="stage-kicker">Basics · Check-in fields · Done</p>
+  </header>
+
+  <div class="section-label">Create</div>
+  <div class="flow">
+    <div class="col">
+      <figure class="shot">
+        <div class="phone" id="m-basics"></div>
+        <figcaption><b>1</b> Basics — name, date (defaults to today), then Next</figcaption>
+      </figure>
+      <div class="down">
+        <svg width="16" height="28" viewBox="0 0 16 28" fill="none" aria-hidden="true">
+          <path d="M8 0 v24" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M3 20 l5 6 l5 -6" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        </svg>
+        Next with name empty
+      </div>
+      <figure class="shot">
+        <div class="phone" id="m-error"></div>
+        <figcaption><b>Name</b> Required. Next shows “Give the event a name”.</figcaption>
+      </figure>
+    </div>
+
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="56" height="16" viewBox="0 0 56 16" fill="none">
+        <path d="M0 8 h50" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M46 3 l7 5 l-7 5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+
+    <figure class="shot">
+      <div class="phone" id="m-fields"></div>
+      <figcaption><b>2</b> Check-in fields — choose what to record at the door. Email and Phone are on.</figcaption>
+    </figure>
+
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="56" height="16" viewBox="0 0 56 16" fill="none">
+        <path d="M0 8 h50" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M46 3 l7 5 l-7 5" stroke="currentColor" stroke-width="1.5" fill="none"/>
+      </svg>
+    </div>
+
+    <figure class="shot">
+      <div class="phone" id="m-done"></div>
+      <figcaption><b>Done</b> Event created, then Start check-in or Back to events.</figcaption>
+    </figure>
+  </div>
+
+  <div class="section-label edit">Edit</div>
+  <p class="section-note">Same two sections, as tappable tabs — no forced order. A teal dot marks a tab with unsaved changes. Save stays off until something changes.</p>
+  <div class="row">
+    <figure class="shot">
+      <div class="phone" id="m-edit-dirty"></div>
+      <figcaption><b>Dirty</b> A change marks the tab with a dot and enables Save. Delete event sits on Basics.</figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="phone" id="m-delete"></div>
+      <figcaption><b>Delete</b> A quiet red link on Basics opens a confirm sheet.</figcaption>
+    </figure>
+    <figure class="shot">
+      <div class="phone" id="m-discard"></div>
+      <figcaption><b>Discard</b> Close or Cancel with unsaved edits asks before losing them.</figcaption>
+    </figure>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

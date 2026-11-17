@@ -52,7 +52,8 @@ import {
   warmMemberPhotos,
 } from "@/components/rollcall/check-in/check-in-outbox";
 import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
-import EventDialogs from "@/components/rollcall/events/event-dialogs";
+import { CreateEventWizardDialog } from "@/components/rollcall/events/create-event-wizard-dialog";
+import { EditEventDialog } from "@/components/rollcall/events/edit-event-dialog";
 import { useToast } from "@/components/rollcall/layout/toast-provider";
 import LocalDate from "@/components/rollcall/shared/local-date";
 import {
@@ -126,18 +127,8 @@ export default function CheckInView({
   const [search, setSearch] = useState("");
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
   const [isEventOpen, setIsEventOpen] = useState(false);
-  const [isDeleteEventOpen, setIsDeleteEventOpen] = useState(false);
-  const [eventName, setEventName] = useState(event?.name ?? "");
-  const [eventDate, setEventDate] = useState(
-    event?.eventDate ?? getCurrentDate(),
-  );
-  const [trackedFields, setTrackedFields] = useState(
-    event?.trackedFields ?? defaultTrackedFields,
-  );
   const [isCheckInPending, setIsCheckInPending] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isSavingEvent, setIsSavingEvent] = useState(false);
-  const [isDeletingEvent, setIsDeletingEvent] = useState(false);
   const isOnline = useSyncExternalStore(
     subscribeOnlineStatus,
     getOnlineSnapshot,
@@ -311,9 +302,6 @@ export default function CheckInView({
   }, [pendingCount]);
 
   function openEventDialog() {
-    setEventName(currentEvent?.name ?? "");
-    setEventDate(currentEvent?.eventDate ?? getCurrentDate());
-    setTrackedFields(currentEvent?.trackedFields ?? defaultTrackedFields);
     setIsEventOpen(true);
   }
 
@@ -486,64 +474,40 @@ export default function CheckInView({
     showToast("Attendance Excel file downloaded", "success");
   }
 
-  async function saveCurrentEvent() {
-    const nextEventName = eventName.trim();
-    if (!nextEventName) {
-      showToast("Add an event name to continue");
-      return;
-    }
-    setIsSavingEvent(true);
-    try {
-      const savedId = await saveEvent({
-        id: eventId || undefined,
-        name: nextEventName,
-        eventDate,
-        trackedFields,
-      });
-      const wasActive = Boolean(activeEvent);
-      setCurrentEvent({
-        id: savedId,
-        name: nextEventName,
-        eventDate,
-        trackedFields,
-      });
-      setIsEventOpen(false);
-      showToast(
-        wasActive
-          ? "Event updated and ready for check-in"
-          : "Event created and ready for check-in",
-        "success",
-      );
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Unable to save event",
-        "error",
-      );
-    } finally {
-      setIsSavingEvent(false);
-    }
+  async function handleCreateEvent(input: {
+    name: string;
+    eventDate: string;
+    trackedFields: string[];
+  }): Promise<string> {
+    const savedId = await saveEvent(input);
+    setCurrentEvent({
+      id: savedId,
+      name: input.name,
+      eventDate: input.eventDate,
+      trackedFields: input.trackedFields,
+    });
+    return savedId;
   }
 
-  async function deleteEvent() {
-    if (!eventId) return;
-    setIsDeletingEvent(true);
-    try {
-      await deleteEventAction(eventId);
-      setCurrentEvent(null);
-      setMembers([]);
-      setIsAttendanceOpen(false);
-      setIsDeleteEventOpen(false);
-      setIsEventOpen(false);
-      showToast("Event and check-in data deleted", "success");
-      startTransition(() => router.push("/events"));
-    } catch (error) {
-      showToast(
-        error instanceof Error ? error.message : "Unable to delete event",
-        "error",
-      );
-    } finally {
-      setIsDeletingEvent(false);
-    }
+  async function handleSaveEditedEvent(input: {
+    id: string;
+    name: string;
+    eventDate: string;
+    trackedFields: string[];
+  }) {
+    await saveEvent(input);
+    setCurrentEvent(input);
+    showToast("Event updated and ready for check-in", "success");
+  }
+
+  async function handleDeleteEvent(targetEventId: string) {
+    await deleteEventAction(targetEventId);
+    setCurrentEvent(null);
+    setMembers([]);
+    setIsAttendanceOpen(false);
+    setIsEventOpen(false);
+    showToast("Event and check-in data deleted", "success");
+    startTransition(() => router.push("/events"));
   }
 
   const visibleMembers = members.filter((member) =>
@@ -955,27 +919,22 @@ export default function CheckInView({
         </>
       )}
 
-      <EventDialogs
-        activeEvent={activeEvent}
-        eventName={eventName}
-        eventDate={eventDate}
-        trackedFields={trackedFields}
-        isEventOpen={isEventOpen}
-        isDeleteEventOpen={isDeleteEventOpen}
-        isSaving={isSavingEvent}
-        isDeleting={isDeletingEvent}
-        onEventOpenChange={setIsEventOpen}
-        onDeleteOpenChange={setIsDeleteEventOpen}
-        onEventNameChange={setEventName}
-        onEventDateChange={setEventDate}
-        onTrackedFieldsChange={setTrackedFields}
-        onSave={saveCurrentEvent}
-        onDeleteRequest={() => {
-          setIsEventOpen(false);
-          setIsDeleteEventOpen(true);
-        }}
-        onDelete={deleteEvent}
-      />
+      {currentEvent ? (
+        <EditEventDialog
+          open={isEventOpen}
+          event={currentEvent}
+          onClose={() => setIsEventOpen(false)}
+          onSave={handleSaveEditedEvent}
+          onDelete={handleDeleteEvent}
+        />
+      ) : (
+        <CreateEventWizardDialog
+          open={isEventOpen}
+          onClose={() => setIsEventOpen(false)}
+          onCreate={handleCreateEvent}
+          onBackToEvents={() => router.push("/events")}
+        />
+      )}
     </>
   );
 }

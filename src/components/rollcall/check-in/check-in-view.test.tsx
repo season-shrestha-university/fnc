@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { checkInMember, removeCheckIn } from "@/app/actions";
+import { checkInMember, deleteEvent, removeCheckIn, saveEvent } from "@/app/actions";
 import { loadOutbox } from "@/components/rollcall/check-in/check-in-outbox";
 import CheckInView from "@/components/rollcall/check-in/check-in-view";
 import { ToastProvider } from "@/components/rollcall/layout/toast-provider";
@@ -326,6 +326,47 @@ describe("CheckInView", () => {
       expect(screen.getByTestId("outbox-status")).toHaveTextContent(
         "All check-ins synced",
       );
+    });
+  });
+
+  it("edits and deletes the active event through EditEventDialog", async () => {
+    vi.mocked(saveEvent).mockResolvedValue("evt-1");
+    vi.mocked(deleteEvent).mockResolvedValue(undefined);
+
+    render(
+      <ToastProvider>
+        <CheckInView event={event} memberCount={10} checkIns={[]} />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Update event" }));
+    expect(screen.getByText("Edit event")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Event name/i), {
+      target: { value: "Town Hall Updated" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => {
+      expect(saveEvent).toHaveBeenCalledWith({
+        id: "evt-1",
+        name: "Town Hall Updated",
+        eventDate: "2026-11-20",
+        trackedFields: ["Name", "Member ID"],
+      });
+    });
+
+    expect(screen.getByText("Town Hall Updated")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Update event" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete event" }));
+    const confirmButtons = screen.getAllByRole("button", {
+      name: "Delete event",
+    });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(deleteEvent).toHaveBeenCalledWith("evt-1");
     });
   });
 });

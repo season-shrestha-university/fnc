@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Create event — wireframe</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #fff;
+      color: #222;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .board {
+      display: inline-block;
+      padding: 56px 64px 72px;
+      background: #fff;
+      width: max-content;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 6px;
+    }
+
+    .lede {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 36px;
+    }
+
+    .section {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #666;
+      margin: 0 0 16px;
+    }
+
+    .section.edit { margin-top: 56px; }
+
+    .flow {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .arrow {
+      width: 72px;
+      height: 844px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: #666;
+    }
+    .arrow svg { display: block; }
+
+    .down {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin: 16px 0 12px;
+      color: #666;
+      font-size: 11px;
+      text-align: center;
+      line-height: 1.35;
+    }
+    .down svg { display: block; }
+
+    figure {
+      margin: 0;
+      width: max-content;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    figcaption {
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.35;
+      color: #333;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* Phone frames */
+    .phone {
+      width: 390px;
+      height: 844px;
+      border: 1px solid #999;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .phone.small {
+      width: 390px;
+      height: 720px;
+    }
+
+    .status {
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      font-size: 11px;
+      color: #666;
+      border-bottom: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+    .status .notch {
+      width: 72px;
+      height: 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+
+    .bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px 10px;
+      flex-shrink: 0;
+    }
+    .bar h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .close {
+      width: 28px;
+      height: 28px;
+      border: 1px solid #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      line-height: 1;
+      color: #444;
+    }
+
+    .body {
+      flex: 1;
+      padding: 8px 20px 16px;
+      overflow: hidden;
+    }
+
+    .steps {
+      margin: 4px 0 22px;
+    }
+    .steps .count {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+    .steps ol {
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+    .steps li {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #777;
+    }
+    .steps li.on { color: #222; font-weight: 600; }
+    .dot {
+      width: 18px;
+      height: 18px;
+      border: 1px solid #999;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+    .steps li.on .dot {
+      background: #333;
+      border-color: #333;
+      color: #fff;
+    }
+    .steps .rule {
+      width: 22px;
+      height: 1px;
+      background: #999;
+      flex-shrink: 0;
+    }
+
+    .field { margin-bottom: 18px; }
+    .label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .req {
+      font-weight: 500;
+      color: #555;
+    }
+
+    .input {
+      height: 44px;
+      border: 1px solid #999;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 15px;
+      color: #222;
+    }
+    .input.empty { color: transparent; }
+    .input .caret {
+      width: 10px;
+      height: 10px;
+      border-right: 1px solid #666;
+      border-bottom: 1px solid #666;
+      transform: rotate(45deg);
+      margin-top: -4px;
+    }
+    .input.error { border-width: 2px; border-color: #444; }
+    .error-text {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #333;
+    }
+
+    .foot {
+      display: flex;
+      gap: 10px;
+      padding: 14px 20px 18px;
+      border-top: 1px solid #ddd;
+      flex-shrink: 0;
+    }
+
+    .btn {
+      height: 48px;
+      border: 1px solid #999;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      font-weight: 600;
+      flex: 1;
+      color: #222;
+    }
+    .btn.primary {
+      background: #222;
+      border-color: #222;
+      color: #fff;
+    }
+    .btn.disabled {
+      background: #fff;
+      border-color: #bbb;
+      color: #aaa;
+      font-weight: 600;
+    }
+    .btn.ghost {
+      background: #fff;
+      border-color: #999;
+    }
+    .btn.full { flex: 1 1 100%; }
+
+    /* Check-in fields */
+    .summary {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border: 1px solid #999;
+      margin-bottom: 20px;
+      font-size: 13px;
+    }
+    .summary .who { font-weight: 600; }
+    .summary .edit {
+      font-size: 13px;
+      text-decoration: underline;
+      color: #222;
+      flex-shrink: 0;
+    }
+
+    .prompt {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 52px;
+      padding: 0 12px;
+      border: 1px solid #999;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+    .row.locked { background: #f2f2f2; }
+    .meta {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .toggle {
+      width: 38px;
+      height: 22px;
+      border: 1px solid #999;
+      border-radius: 11px;
+      position: relative;
+      flex-shrink: 0;
+      background: #fff;
+    }
+    .toggle i {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border: 1px solid #999;
+      border-radius: 50%;
+      top: 3px;
+      left: 3px;
+      background: #fff;
+    }
+    .toggle.on { background: #e6e6e6; }
+    .toggle.on i {
+      left: auto;
+      right: 3px;
+      background: #444;
+      border-color: #444;
+    }
+
+    /* Done */
+    .done {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 28px 8px;
+      text-align: center;
+    }
+    .mark {
+      width: 64px;
+      height: 64px;
+      border: 1px solid #999;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 22px;
+    }
+    .done .ename {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .done .edate {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 18px;
+    }
+    .done .title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 28px;
+    }
+    .done-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Edit tabs */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #999;
+      margin: 4px 0 22px;
+    }
+    .tab {
+      flex: 1;
+      text-align: center;
+      padding: 10px 8px 12px;
+      font-size: 14px;
+      color: #666;
+    }
+    .tab.on {
+      color: #222;
+      font-weight: 600;
+      box-shadow: inset 0 -2px 0 #222;
+    }
+
+    .delete {
+      display: inline-block;
+      margin-top: 28px;
+      font-size: 14px;
+      color: #444;
+      text-decoration: underline;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #555;
+      margin: -4px 0 16px;
+      max-width: 390px;
+    }
+  </style>
+</head>
+<body>
+  <div class="board">
+    <h1>Create event — wireframe</h1>
+    <p class="lede">Low-fidelity flow for review. No colour, no visual styling — structure and copy only.</p>
+
+    <div class="section">Create</div>
+    <div class="flow">
+      <div class="col">
+        <figure id="frame-basics">
+          <div class="phone">
+            <div class="status"><span>9:41</span><span class="notch"></span><span>100%</span></div>
+            <div class="bar">
+              <h2>Create event</h2>
+              <span class="close">×</span>
+            </div>
+            <div class="body">
+              <div class="steps">
+                <div class="count">1 of 2</div>
+                <ol>
+                  <li class="on"><span class="dot">1</span> Basics</li>
+                  <span class="rule"></span>
+                  <li><span class="dot">2</span> Check-in fields</li>
+                </ol>
+              </div>
+              <div class="field">
+                <span class="label">Event name <span class="req">*</span></span>
+                <div class="input empty"></div>
+              </div>
+              <div class="field">
+                <span class="label">Date</span>
+                <div class="input">17 Nov 2026 <span class="caret"></span></div>
+              </div>
+            </div>
+            <div class="foot">
+              <div class="btn ghost">Cancel</div>
+              <div class="btn primary">Next</div>
+            </div>
+          </div>
+          <figcaption>1. Basics — name, date (defaults to today), then Next</figcaption>
+        </figure>
+
+        <div class="down">
+          <svg width="16" height="28" viewBox="0 0 16 28" fill="none" aria-hidden="true">
+            <path d="M8 0 v24" stroke="#666" stroke-width="1"/>
+            <path d="M3 20 l5 6 l5 -6" stroke="#666" stroke-width="1" fill="none"/>
+          </svg>
+          Next with name empty
+        </div>
+
+        <figure id="frame-basics-error">
+          <div class="phone small">
+            <div class="status"><span>9:41</span><span class="notch"></span><span>100%</span></div>
+            <div class="bar">
+              <h2>Create event</h2>
+              <span class="close">×</span>
+            </div>
+            <div class="body">
+              <div class="steps">
+                <div class="count">1 of 2</div>
+                <ol>
+                  <li class="on"><span class="dot">1</span> Basics</li>
+                  <span class="rule"></span>
+                  <li><span class="dot">2</span> Check-in fields</li>
+                </ol>
+              </div>
+              <div class="field">
+                <span class="label">Event name <span class="req">*</span></span>
+                <div class="input error"></div>
+                <div class="error-text">Give the event a name</div>
+              </div>
+              <div class="field">
+                <span class="label">Date</span>
+                <div class="input">17 Nov 2026 <span class="caret"></span></div>
+              </div>
+            </div>
+            <div class="foot">
+              <div class="btn ghost">Cancel</div>
+              <div class="btn primary">Next</div>
+            </div>
+          </div>
+          <figcaption>Empty name — Next shows “Give the event a name”</figcaption>
+        </figure>
+      </div>
+
+      <div class="arrow" aria-hidden="true">
+        <svg width="56" height="16" viewBox="0 0 56 16" fill="none">
+          <path d="M0 8 h50" stroke="#666" stroke-width="1"/>
+          <path d="M46 3 l7 5 l-7 5" stroke="#666" stroke-width="1" fill="none"/>
+        </svg>
+      </div>
+
+      <figure id="frame-fields">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span class="notch"></span><span>100%</span></div>
+          <div class="bar">
+            <h2>Create event</h2>
+            <span class="close">×</span>
+          </div>
+          <div class="body">
+            <div class="steps">
+              <div class="count">2 of 2</div>
+              <ol>
+                <li><span class="dot">1</span> Basics</li>
+                <span class="rule"></span>
+                <li class="on"><span class="dot">2</span> Check-in fields</li>
+              </ol>
+            </div>
+            <div class="summary">
+              <span class="who">Community Lunch · 17 Nov 2026</span>
+              <span class="edit">Edit</span>
+            </div>
+            <div class="prompt">What should we record at the door?</div>
+            <div class="row locked">
+              <span>Name</span>
+              <span class="meta">Always recorded</span>
+            </div>
+            <div class="row locked">
+              <span>Member ID</span>
+              <span class="meta">Always recorded</span>
+            </div>
+            <div class="row">
+              <span>Email</span>
+              <span class="toggle" aria-label="off"><i></i></span>
+            </div>
+            <div class="row">
+              <span>Phone</span>
+              <span class="toggle" aria-label="off"><i></i></span>
+            </div>
+            <div class="row">
+              <span>Address</span>
+              <span class="toggle" aria-label="off"><i></i></span>
+            </div>
+            <div class="row">
+              <span>Date of birth</span>
+              <span class="toggle" aria-label="off"><i></i></span>
+            </div>
+            <div class="row">
+              <span>Photo</span>
+              <span class="toggle" aria-label="off"><i></i></span>
+            </div>
+          </div>
+          <div class="foot">
+            <div class="btn ghost">Back</div>
+            <div class="btn primary">Create event</div>
+          </div>
+        </div>
+        <figcaption>2. Check-in fields — choose what to record at the door</figcaption>
+      </figure>
+
+      <div class="arrow" aria-hidden="true">
+        <svg width="56" height="16" viewBox="0 0 56 16" fill="none">
+          <path d="M0 8 h50" stroke="#666" stroke-width="1"/>
+          <path d="M46 3 l7 5 l-7 5" stroke="#666" stroke-width="1" fill="none"/>
+        </svg>
+      </div>
+
+      <figure id="frame-done">
+        <div class="phone">
+          <div class="status"><span>9:41</span><span class="notch"></span><span>100%</span></div>
+          <div class="done">
+            <div class="mark">
+              <svg width="28" height="22" viewBox="0 0 28 22" fill="none" aria-hidden="true">
+                <path d="M2 11 l8 8 L26 2" stroke="#222" stroke-width="2" fill="none"/>
+              </svg>
+            </div>
+            <div class="ename">Community Lunch</div>
+            <div class="edate">17 Nov 2026</div>
+            <div class="title">Event created</div>
+            <div class="done-actions">
+              <div class="btn primary">Start check-in</div>
+              <div class="btn ghost">Back to events</div>
+            </div>
+          </div>
+        </div>
+        <figcaption>3. Done — Event created, then Start check-in or Back to events</figcaption>
+      </figure>
+    </div>
+
+    <div class="section edit">Edit</div>
+    <p class="note">Same two sections, as tappable tabs — no forced order. People can jump to the part they want to change.</p>
+    <figure id="frame-edit">
+      <div class="phone">
+        <div class="status"><span>9:41</span><span class="notch"></span><span>100%</span></div>
+        <div class="bar">
+          <h2>Edit event</h2>
+          <span class="close">×</span>
+        </div>
+        <div class="body">
+          <div class="tabs">
+            <div class="tab on">Basics</div>
+            <div class="tab">Check-in fields</div>
+          </div>
+          <div class="field">
+            <span class="label">Event name <span class="req">*</span></span>
+            <div class="input">Community Lunch</div>
+          </div>
+          <div class="field">
+            <span class="label">Date</span>
+            <div class="input">17 Nov 2026 <span class="caret"></span></div>
+          </div>
+          <span class="delete">Delete event</span>
+        </div>
+        <div class="foot">
+          <div class="btn disabled">Save changes</div>
+        </div>
+      </div>
+      <figcaption>Edit — tabs, Save off until a change, Delete event on Basics</figcaption>
+    </figure>
+  </div>
+</body>
+</html>
