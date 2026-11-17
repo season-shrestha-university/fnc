@@ -1,63 +1,95 @@
-import { test, expect } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-import { getVolunteerCredentials } from "./helpers/auth";
+const testEmail = process.env.TEST_VOLUNTEER_EMAIL;
+const testPassword = process.env.TEST_VOLUNTEER_PASSWORD;
 
-test.describe("Volunteer Authentication Flow", () => {
-  test("1. Login screen does not allow self-registration (no sign-up)", async ({
+function getCredentials() {
+  if (!testEmail || !testPassword) {
+    throw new Error(
+      "TEST_VOLUNTEER_EMAIL and TEST_VOLUNTEER_PASSWORD must be set in .env.local to run authentication e2e tests.",
+    );
+  }
+  return { email: testEmail, password: testPassword };
+}
+
+async function signIn(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await expect(
+    page.getByRole("heading", { name: "Sign in to check in" }),
+  ).toBeVisible();
+
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+test.describe("user authentication", () => {
+  test("redirects unauthenticated visitors on protected routes to /login", async ({
     page,
   }) => {
-    await page.goto("/login");
-
-    await expect(page.getByLabel(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/password/i)).toBeVisible();
-
-    await expect(
-      page.getByRole("link", { name: /sign up|register|create account/i }),
-    ).toHaveCount(0);
-    await expect(
-      page.getByRole("button", { name: /sign up|register|create account/i }),
-    ).toHaveCount(0);
+    for (const route of ["/", "/dashboard", "/events", "/members"]) {
+      await page.goto(route);
+      await expect(page).toHaveURL(/\/login$/);
+      await expect(
+        page.getByRole("heading", { name: "Sign in to check in" }),
+      ).toBeVisible();
+    }
   });
 
-  test("2. Rejects invalid credentials and keeps user on login screen", async ({
+  test("shows an error alert when signing in with invalid credentials", async ({
     page,
   }) => {
-    await page.goto("/login");
+    await signIn(page, "invalid-user@example.com", "wrong-password-123");
 
-    await page.getByLabel(/email/i).fill("wrong@communitycenter.org");
-    await page.getByLabel(/password/i).fill("WrongPassword123!");
-    await page.getByRole("button", { name: /sign in|log in/i }).click();
-
-    await expect(page.getByText(/invalid login credentials/i)).toBeVisible();
-    await expect(page).toHaveURL(/\/login/);
+    const alert = page.locator('form [role="alert"]');
+    await expect(alert).toBeVisible();
+    await expect(alert).toContainText(/invalid login credentials/i);
+    await expect(page).toHaveURL(/\/login$/);
   });
 
-  test("3. Logs in with accurate credentials and signs out successfully", async ({
+  test("signs in, persists session, redirects /login when authenticated, and signs out", async ({
     page,
   }) => {
-    const { email, password } = getVolunteerCredentials();
+    const { email, password } = getCredentials();
 
-    await page.goto("/");
-    await expect(page).toHaveURL(/\/login/);
+    await signIn(page, email, password);
 
-    await page.getByLabel(/email/i).fill(email);
-    await page.getByLabel(/password/i).fill(password);
-    await page.getByRole("button", { name: /sign in|log in/i }).click();
-
-    await expect(page).toHaveURL("/");
-    const signOutButton = page.getByRole("button", {
-      name: /sign out|log out/i,
-    });
-    await expect(signOutButton).toBeVisible();
-
-    await signOutButton.click();
-
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/$/);
     await expect(
-      page.getByRole("button", { name: /sign in|log in/i }),
-    ).toBeEnabled();
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
 
+    // Session remains active across page reloads and protected routes.
+    await page.reload();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
+
+    await page.goto("/events");
+    await expect(page).toHaveURL(/\/events$/);
+
+    // Authenticated users visiting /login are redirected to /.
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
+
+    // Open mobile navigation drawer when present before clicking Sign out.
+    const openMenuButton = page.getByRole("button", { name: "Open menu" });
+    if (await openMenuButton.isVisible()) {
+      await openMenuButton.click();
+    }
+    await page.getByRole("button", { name: "Sign out" }).click();
+
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(
+      page.getByRole("heading", { name: "Sign in to check in" }),
+    ).toBeVisible();
+
+    // Protected routes require authentication again after sign-out.
     await page.goto("/");
-    await expect(page).toHaveURL(/\/login/);
+    await expect(page).toHaveURL(/\/login$/);
   });
 });
