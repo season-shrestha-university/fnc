@@ -99,7 +99,7 @@ describe("EditEventDialog", () => {
     expect(props.onClose).toHaveBeenCalled();
   });
 
-  it("shows immediate inline error when Name is emptied and re-enables Save on restore", () => {
+  it("shows immediate inline error when Name is emptied and re-enables Save on restore", async () => {
     renderEditDialog();
 
     const nameInput = screen.getByLabelText(/Event name/i);
@@ -112,7 +112,11 @@ describe("EditEventDialog", () => {
     ).toBeDisabled();
 
     fireEvent.change(nameInput, { target: { value: "Saturday Lunch" } });
-    expect(screen.queryByText("Give the event a name")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Give the event a name"),
+      ).not.toBeInTheDocument();
+    });
     expect(
       screen.getByRole("button", { name: "Save changes" }),
     ).not.toBeDisabled();

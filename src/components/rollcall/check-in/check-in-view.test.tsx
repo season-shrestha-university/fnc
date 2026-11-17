@@ -369,4 +369,49 @@ describe("CheckInView", () => {
       expect(deleteEvent).toHaveBeenCalledWith("evt-1");
     });
   });
+
+  it("supports Undo on the success door sheet and shows error door sheet for unknown IDs", async () => {
+    Object.defineProperty(window.navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    vi.spyOn(window, "prompt")
+      .mockReturnValueOnce("FNC-001")
+      .mockReturnValueOnce("UNKNOWN-99");
+
+    render(
+      <ToastProvider>
+        <CheckInView
+          event={event}
+          memberCount={10}
+          roster={roster}
+          checkIns={[]}
+        />
+      </ToastProvider>,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("scan-toast")).toHaveAttribute(
+        "data-variant",
+        "success",
+      );
+    });
+    expect(loadOutbox("evt-1")).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Undo" }));
+    expect(loadOutbox("evt-1")).toHaveLength(0);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Enter member ID manually" }),
+    );
+    await waitFor(() => {
+      const sheet = screen.getByTestId("scan-toast");
+      expect(sheet).toHaveAttribute("data-variant", "error");
+      expect(sheet).toHaveTextContent("Member not found");
+    });
+  });
 });

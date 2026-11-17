@@ -6,7 +6,7 @@ export function DashboardDataSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading dashboard metrics"
-      className="animate-pulse"
+      className="skeleton-pulse"
     >
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         {Array.from({ length: 3 }, (_, index) => (
@@ -23,7 +23,7 @@ export function EventsGridSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading events"
-      className="mt-8 grid animate-pulse gap-4 md:grid-cols-2 xl:grid-cols-3"
+      className="skeleton-pulse mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3"
     >
       {Array.from({ length: 6 }, (_, index) => (
         <div key={index} className={`h-56 ${card}`} />
@@ -37,7 +37,7 @@ export function MembersListSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading members"
-      className="grid animate-pulse gap-3"
+      className="skeleton-pulse grid gap-3"
     >
       {Array.from({ length: 6 }, (_, index) => (
         <div key={index} className={`h-[74px] ${card}`} />
@@ -51,7 +51,7 @@ export function EventDetailsSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading event details"
-      className="animate-pulse"
+      className="skeleton-pulse"
     >
       <div className={`mt-6 h-11 w-72 ${block}`} />
       <div className={`mt-3 h-5 w-44 ${block}`} />
@@ -69,7 +69,7 @@ export function CheckInSkeleton() {
     <div
       aria-busy="true"
       aria-label="Loading event check-in"
-      className="animate-pulse"
+      className="skeleton-pulse"
     >
       <div className="mt-6 mb-4 h-[96px] rounded-xl bg-card ring-1 ring-border" />
       <div className="grid gap-4 lg:grid-cols-[1.2fr_1fr]">

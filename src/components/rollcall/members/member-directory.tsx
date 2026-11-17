@@ -4,10 +4,12 @@ import {
   Suspense,
   use,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import QRCode from "qrcode";
 import {
   Download,
@@ -31,6 +33,7 @@ import {
   getAvatarColor,
   getInitials,
 } from "@/components/rollcall/shared/member-utils";
+import { prefersReducedMotion } from "@/components/rollcall/shared/use-motion";
 import { MembersListSkeleton } from "@/components/rollcall/shared/workspace-skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -41,6 +44,9 @@ function MembersListContent({
   search,
   optimisticMembers,
   deletedMemberIds,
+  justAddedId,
+  removingMemberIds,
+  onClearJustAdded,
   onSelectMember,
   onEditMember,
   onDeleteMember,
@@ -49,11 +55,15 @@ function MembersListContent({
   search: string;
   optimisticMembers: DirectoryMember[];
   deletedMemberIds: string[];
+  justAddedId?: string | null;
+  removingMemberIds?: string[];
+  onClearJustAdded?: () => void;
   onSelectMember: (member: DirectoryMember) => void;
   onEditMember: (member: DirectoryMember) => void;
   onDeleteMember: (member: DirectoryMember) => void;
 }) {
   const deletedSet = new Set(deletedMemberIds);
+  const removingSet = new Set(removingMemberIds ?? []);
   const mergedMap = new Map<string, DirectoryMember>();
   for (const member of initialMembers) {
     if (!deletedSet.has(member.id)) mergedMap.set(member.id, member);
@@ -94,7 +104,20 @@ function MembersListContent({
           .filter(Boolean)
           .join(" · ");
         return (
-          <Card key={member.id}>
+          <Card
+            key={member.id}
+            data-just-added={member.id === justAddedId ? "true" : undefined}
+            data-removing={removingSet.has(member.id) ? "true" : undefined}
+            onAnimationEnd={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                member.id === justAddedId
+              ) {
+                onClearJustAdded?.();
+              }
+            }}
+            className="list-item-enter list-item-exit"
+          >
             <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex min-w-0 items-center gap-3.5">
                 <Avatar
@@ -158,6 +181,9 @@ function ResolvedMembersList({
   search,
   optimisticMembers,
   deletedMemberIds,
+  justAddedId,
+  removingMemberIds,
+  onClearJustAdded,
   onSelectMember,
   onEditMember,
   onDeleteMember,
@@ -166,6 +192,9 @@ function ResolvedMembersList({
   search: string;
   optimisticMembers: DirectoryMember[];
   deletedMemberIds: string[];
+  justAddedId?: string | null;
+  removingMemberIds?: string[];
+  onClearJustAdded?: () => void;
   onSelectMember: (member: DirectoryMember) => void;
   onEditMember: (member: DirectoryMember) => void;
   onDeleteMember: (member: DirectoryMember) => void;
@@ -177,6 +206,9 @@ function ResolvedMembersList({
       search={search}
       optimisticMembers={optimisticMembers}
       deletedMemberIds={deletedMemberIds}
+      justAddedId={justAddedId}
+      removingMemberIds={removingMemberIds}
+      onClearJustAdded={onClearJustAdded}
       onSelectMember={onSelectMember}
       onEditMember={onEditMember}
       onDeleteMember={onDeleteMember}
@@ -197,6 +229,10 @@ export default function MemberDirectory({
     [],
   );
   const [deletedMemberIds, setDeletedMemberIds] = useState<string[]>([]);
+  const [removingMemberIds, setRemovingMemberIds] = useState<string[]>([]);
+  const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const justAddedTimerRef = useRef<number | null>(null);
+  const removeTimersRef = useRef<number[]>([]);
   const [search, setSearch] = useState("");
   const [selectedMember, setSelectedMember] = useState<DirectoryMember | null>(
     null,
@@ -242,20 +278,69 @@ export default function MemberDirectory({
     setEditingMember(member);
   }
 
+  const [lastDeletingMember, setLastDeletingMember] =
+    useState<DirectoryMember | null>(deletingMember);
+  if (deletingMember && deletingMember !== lastDeletingMember) {
+    setLastDeletingMember(deletingMember);
+  }
+
+  useEffect(() => {
+    const timers = removeTimersRef.current;
+    return () => {
+      if (justAddedTimerRef.current !== null) {
+        window.clearTimeout(justAddedTimerRef.current);
+      }
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, []);
+
+  function markJustAdded(memberId: string) {
+    if (justAddedTimerRef.current !== null) {
+      window.clearTimeout(justAddedTimerRef.current);
+    }
+    if (prefersReducedMotion()) {
+      setJustAddedId(memberId);
+      justAddedTimerRef.current = window.setTimeout(() => {
+        setJustAddedId((current) => (current === memberId ? null : current));
+      }, 120);
+      return;
+    }
+    setJustAddedId(memberId);
+    justAddedTimerRef.current = window.setTimeout(() => {
+      setJustAddedId((current) => (current === memberId ? null : current));
+    }, 320);
+  }
+
   async function handleConfirmDelete() {
     if (!deletingMember) return;
+    const target = deletingMember;
     setIsDeleting(true);
     try {
-      await deleteMember(deletingMember.id);
-      setDeletedMemberIds((current) => [...current, deletingMember.id]);
-      setOptimisticMembers((current) =>
-        current.filter((item) => item.id !== deletingMember.id),
-      );
-      if (selectedMember?.id === deletingMember.id) {
+      await deleteMember(target.id);
+      if (selectedMember?.id === target.id) {
         setSelectedMember(null);
       }
-      onMessage(`Deleted ${deletingMember.name}`, "success");
+      onMessage(`Deleted ${target.name}`, "success");
       setDeletingMember(null);
+
+      if (prefersReducedMotion()) {
+        setDeletedMemberIds((current) => [...current, target.id]);
+        setOptimisticMembers((current) =>
+          current.filter((item) => item.id !== target.id),
+        );
+      } else {
+        setRemovingMemberIds((current) => [...current, target.id]);
+        const timer = window.setTimeout(() => {
+          setRemovingMemberIds((current) =>
+            current.filter((id) => id !== target.id),
+          );
+          setDeletedMemberIds((current) => [...current, target.id]);
+          setOptimisticMembers((current) =>
+            current.filter((item) => item.id !== target.id),
+          );
+        }, 140);
+        removeTimersRef.current.push(timer);
+      }
     } catch (error) {
       onMessage(
         error instanceof Error ? error.message : "Unable to delete member",
@@ -339,6 +424,9 @@ export default function MemberDirectory({
             search={search}
             optimisticMembers={optimisticMembers}
             deletedMemberIds={deletedMemberIds}
+            justAddedId={justAddedId}
+            removingMemberIds={removingMemberIds}
+            onClearJustAdded={() => setJustAddedId(null)}
             onSelectMember={selectMember}
             onEditMember={openEditDialog}
             onDeleteMember={setDeletingMember}
@@ -350,6 +438,9 @@ export default function MemberDirectory({
           search={search}
           optimisticMembers={optimisticMembers}
           deletedMemberIds={deletedMemberIds}
+          justAddedId={justAddedId}
+          removingMemberIds={removingMemberIds}
+          onClearJustAdded={() => setJustAddedId(null)}
           onSelectMember={selectMember}
           onEditMember={openEditDialog}
           onDeleteMember={setDeletingMember}
@@ -361,6 +452,7 @@ export default function MemberDirectory({
         onClose={() => setIsCreateWizardOpen(false)}
         onCreated={(created) => {
           setOptimisticMembers((current) => [...current, created]);
+          markJustAdded(created.id);
           onMessage(
             `Member created and QR generated for ${created.name}`,
             "success",
@@ -382,39 +474,52 @@ export default function MemberDirectory({
         onMessage={onMessage}
       />
 
-      {deletingMember && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">
-          <Card className="w-full max-w-sm">
-            <CardContent className="p-6">
-              <h2 className="font-heading text-xl font-extrabold">
-                Delete {deletingMember.name}?
-              </h2>
-              <p className="mt-2 text-[15px] text-muted-foreground">
-                This will permanently remove this member and all of their event
-                check-in records. This action cannot be undone.
-              </p>
-              <div className="mt-6 grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDeletingMember(null)}
-                  disabled={isDeleting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-destructive text-white hover:bg-destructive/90"
-                  onClick={handleConfirmDelete}
-                  loading={isDeleting}
-                >
-                  {isDeleting ? "Deleting..." : "Delete member"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <DialogPrimitive.Root
+        open={Boolean(deletingMember)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen && !isDeleting) setDeletingMember(null);
+        }}
+      >
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Backdrop className="ui-backdrop fixed inset-0 z-50 bg-foreground/50" />
+          <DialogPrimitive.Popup
+            role="alertdialog"
+            aria-modal="true"
+            className="ui-dialog fixed top-1/2 left-1/2 z-50 w-full max-w-[336px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 shadow-lg outline-none"
+          >
+            {lastDeletingMember && (
+              <>
+                <h2 className="font-heading text-xl font-extrabold">
+                  Delete {lastDeletingMember.name}?
+                </h2>
+                <p className="mt-2 text-[15px] text-muted-foreground">
+                  This will permanently remove this member and all of their
+                  event check-in records. This action cannot be undone.
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDeletingMember(null)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    onClick={handleConfirmDelete}
+                    loading={isDeleting}
+                    loadingText="Deleting…"
+                  >
+                    Delete member
+                  </Button>
+                </div>
+              </>
+            )}
+          </DialogPrimitive.Popup>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
 
       {selectedMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/45 p-4">
@@ -434,7 +539,7 @@ export default function MemberDirectory({
                   unoptimized
                 />
               ) : (
-                <div className="my-5 size-64 animate-pulse rounded-xl bg-muted" />
+                <div className="skeleton-pulse my-5 size-64 rounded-xl bg-muted" />
               )}
               <p className="font-mono text-sm text-muted-foreground">
                 {selectedMember.memberId}

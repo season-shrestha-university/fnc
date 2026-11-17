@@ -82,6 +82,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
   const onScanRef = useRef(onScan);
   const isProcessingScanRef = useRef(false);
   const [isScanning, setIsScanning] = useState(false);
+  const [isStreamReady, setIsStreamReady] = useState(false);
 
   useEffect(() => {
     onScanRef.current = onScan;
@@ -95,6 +96,7 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     }
     stopMediaStream(streamRef.current, videoRef.current);
     streamRef.current = null;
+    setIsStreamReady(false);
   }, []);
 
   const submitScan = useCallback(
@@ -203,6 +205,9 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
       video.playsInline = true;
       video.srcObject = stream;
       await video.play();
+      if (session === sessionRef.current) {
+        setIsStreamReady(true);
+      }
 
       const decoder = await decoderLoad;
       const canvas = document.createElement("canvas");
@@ -230,5 +235,5 @@ export function useQrScanner({ onScan, onMessage }: UseQrScannerOptions) {
     onMessage("Scan cancelled");
   }
 
-  return { isScanning, startScan, cancelScan, stopScan, videoRef };
+  return { isScanning, isStreamReady, startScan, cancelScan, stopScan, videoRef };
 }

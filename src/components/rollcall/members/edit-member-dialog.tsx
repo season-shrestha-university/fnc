@@ -5,12 +5,15 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { ArrowLeft, ArrowRight, Loader2, Lock, User, X } from "lucide-react";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { ArrowLeft, ArrowRight, Lock, User, X } from "lucide-react";
 import { updateMember, type DirectoryMember } from "@/app/actions";
 import type { ToastVariant } from "@/components/rollcall/layout/toast-provider";
+import { DirtyDot } from "@/components/rollcall/shared/dirty-dot";
 import {
   EDIT_SECTIONS,
   getEditDirtyMap,
@@ -40,15 +43,28 @@ type EditMemberDialogProps = {
 };
 
 export function EditMemberDialog(props: EditMemberDialogProps) {
-  if (!props.member) return null;
+  const [lastMember, setLastMember] = useState<DirectoryMember | null>(
+    props.member,
+  );
+  if (props.member && props.member !== lastMember) {
+    setLastMember(props.member);
+  }
+  const activeMember = props.member ?? lastMember;
+
   return (
-    <EditMemberContent
-      key={props.member.id}
-      member={props.member}
-      onClose={props.onClose}
-      onUpdated={props.onUpdated}
-      onMessage={props.onMessage}
-    />
+    <DialogPrimitive.Root open={Boolean(props.member)}>
+      <DialogPrimitive.Portal>
+        {activeMember ? (
+          <EditMemberContent
+            key={activeMember.id}
+            member={activeMember}
+            onClose={props.onClose}
+            onUpdated={props.onUpdated}
+            onMessage={props.onMessage}
+          />
+        ) : null}
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
@@ -131,6 +147,7 @@ function EditMemberContent({
     videoRef,
     facingMode,
     isStartingCamera,
+    isStreamReady,
     hasMultipleCameras,
     cameraError,
     startCamera,
@@ -318,20 +335,19 @@ function EditMemberContent({
 
   const liveName = values.name.trim();
 
+  const activeTabIndex = EDIT_SECTIONS.indexOf(step);
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-foreground/50 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          requestClose();
-        }
-      }}
-    >
-      <div
+    <>
+      <DialogPrimitive.Backdrop
+        onClick={requestClose}
+        className="ui-backdrop fixed inset-0 z-50 bg-foreground/50"
+      />
+      <DialogPrimitive.Popup
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-member-dialog-title"
-        className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
+        className="ui-dialog ui-dialog-responsive-sheet fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
       >
         <div aria-live="polite" className="sr-only">
           {STEP_META[step].label}
@@ -387,51 +403,50 @@ function EditMemberContent({
           </div>
         </div>
 
-        <div
-          role="tablist"
-          aria-label="Member sections"
-          className="grid grid-cols-3 gap-1.5 px-5 pt-0.5 sm:px-6"
-        >
-          {EDIT_SECTIONS.map((section, index) => {
-            const isActive = step === section;
-            const isSectionDirty = dirtyMap[section];
-            return (
-              <button
-                key={section}
-                ref={(element) => {
-                  tabRefs.current[section] = element;
-                }}
-                type="button"
-                role="tab"
-                id={`edit-tab-${section}`}
-                aria-selected={isActive}
-                onClick={() => switchToSection(section)}
-                onKeyDown={(event) => handleTabKeyDown(event, index)}
-                className="flex min-h-11 flex-col items-center gap-2 px-0.5 pb-1.5 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`block h-1 w-full rounded-full transition-colors ${
-                    isActive ? "bg-primary" : "bg-[#D5DCDF]"
-                  }`}
-                />
-                <span
-                  className={`inline-flex items-center gap-1.5 text-sm font-bold leading-none ${
-                    isActive ? "text-primary" : "text-muted-foreground"
-                  }`}
+        <div className="px-5 pt-0.5 sm:px-6">
+          <div
+            aria-hidden="true"
+            className="relative h-1 w-full overflow-hidden rounded-full bg-[#D5DCDF]"
+          >
+            <span
+              className="tab-underline block h-full w-1/3 rounded-full bg-primary"
+              style={{ "--tab-index": activeTabIndex } as CSSProperties}
+            />
+          </div>
+          <div
+            role="tablist"
+            aria-label="Member sections"
+            className="grid grid-cols-3"
+          >
+            {EDIT_SECTIONS.map((section, index) => {
+              const isActive = step === section;
+              const isSectionDirty = dirtyMap[section];
+              return (
+                <button
+                  key={section}
+                  ref={(element) => {
+                    tabRefs.current[section] = element;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`edit-tab-${section}`}
+                  aria-selected={isActive}
+                  onClick={() => switchToSection(section)}
+                  onKeyDown={(event) => handleTabKeyDown(event, index)}
+                  className="flex min-h-11 items-center justify-center px-1 py-1.5 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
                 >
-                  {STEP_META[section].label}
-                  {isSectionDirty && (
-                    <span
-                      title="Unsaved changes"
-                      aria-label="Unsaved changes"
-                      className="size-[7px] rounded-full bg-primary"
-                    />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold leading-none transition-colors duration-motion-fast ease-motion-standard ${
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {STEP_META[section].label}
+                    <DirtyDot dirty={isSectionDirty} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <form
@@ -439,59 +454,62 @@ function EditMemberContent({
           noValidate
           className="flex min-h-0 flex-1 flex-col"
         >
-          {step === "photo" && (
-            <PhotoStep
-              mode="edit"
-              subState={photoSubState}
-              photoPreviewUrl={photoPreviewUrl}
-              memberName={liveName || snapshot.values.name}
-              formError={errors.form}
-              facingMode={facingMode}
-              isStartingCamera={isStartingCamera}
-              hasMultipleCameras={hasMultipleCameras}
-              cameraError={cameraError}
-              videoRef={videoRef}
-              headingRef={headingRef}
-              onStartCamera={startCamera}
-              onStopCamera={stopCamera}
-              onSwitchCamera={switchCamera}
-              onCapture={capturePhoto}
-              onFileSelected={(file) => applyPhotoFile(file, false)}
-              onInvalidFile={(message) => onMessage(message, "error")}
-              onRetake={() => setPhotoSubState("camera")}
-              onCancelCamera={() => {
-                stopCamera();
-                setPhotoSubState("portrait");
-              }}
-              onRemovePhoto={handleRemovePhoto}
-              onSkip={() => switchToSection("details")}
-              onNext={() => switchToSection("details")}
-            />
-          )}
+          <div key={step} className="tab-panel flex min-h-0 flex-1 flex-col">
+            {step === "photo" && (
+              <PhotoStep
+                mode="edit"
+                subState={photoSubState}
+                photoPreviewUrl={photoPreviewUrl}
+                memberName={liveName || snapshot.values.name}
+                formError={errors.form}
+                facingMode={facingMode}
+                isStartingCamera={isStartingCamera}
+                isStreamReady={isStreamReady}
+                hasMultipleCameras={hasMultipleCameras}
+                cameraError={cameraError}
+                videoRef={videoRef}
+                headingRef={headingRef}
+                onStartCamera={startCamera}
+                onStopCamera={stopCamera}
+                onSwitchCamera={switchCamera}
+                onCapture={capturePhoto}
+                onFileSelected={(file) => applyPhotoFile(file, false)}
+                onInvalidFile={(message) => onMessage(message, "error")}
+                onRetake={() => setPhotoSubState("camera")}
+                onCancelCamera={() => {
+                  stopCamera();
+                  setPhotoSubState("portrait");
+                }}
+                onRemovePhoto={handleRemovePhoto}
+                onSkip={() => switchToSection("details")}
+                onNext={() => switchToSection("details")}
+              />
+            )}
 
-          {step === "details" && (
-            <DetailsStep
-              mode="edit"
-              values={values}
-              errors={errors}
-              photoPreviewUrl={photoPreviewUrl}
-              headingRef={headingRef}
-              focusField={focusField}
-              onChange={handleFieldChange}
-            />
-          )}
+            {step === "details" && (
+              <DetailsStep
+                mode="edit"
+                values={values}
+                errors={errors}
+                photoPreviewUrl={photoPreviewUrl}
+                headingRef={headingRef}
+                focusField={focusField}
+                onChange={handleFieldChange}
+              />
+            )}
 
-          {step === "contact" && (
-            <ContactStep
-              mode="edit"
-              values={values}
-              errors={errors}
-              photoPreviewUrl={photoPreviewUrl}
-              isSubmitting={isSubmitting}
-              headingRef={headingRef}
-              onChange={handleFieldChange}
-            />
-          )}
+            {step === "contact" && (
+              <ContactStep
+                mode="edit"
+                values={values}
+                errors={errors}
+                photoPreviewUrl={photoPreviewUrl}
+                isSubmitting={isSubmitting}
+                headingRef={headingRef}
+                onChange={handleFieldChange}
+              />
+            )}
+          </div>
 
           <footer className="sticky bottom-0 z-10 border-t border-border bg-card px-5 pt-2.5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:static sm:px-6 sm:py-4">
             <div className="mb-2 flex items-center justify-between">
@@ -532,30 +550,31 @@ function EditMemberContent({
               </Button>
               <Button
                 type="submit"
+                loading={isSubmitting}
+                loadingText="Saving…"
                 disabled={!canSave || isSubmitting}
                 className="h-14 min-h-11 text-base font-bold disabled:bg-[#C5CDD0] disabled:text-white disabled:opacity-100 sm:min-w-[200px]"
               >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="size-5 animate-spin" />
-                    Saving…
-                  </>
-                ) : (
-                  "Save changes"
-                )}
+                Save changes
               </Button>
             </div>
           </footer>
         </form>
 
-        {showDiscardConfirm && (
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="edit-discard-confirm-title"
-            className="absolute inset-0 z-20 flex items-center justify-center bg-foreground/50 p-5"
-          >
-            <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
+        <DialogPrimitive.Root
+          open={showDiscardConfirm}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setShowDiscardConfirm(false);
+          }}
+        >
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Backdrop className="ui-backdrop fixed inset-0 z-[60] bg-foreground/50" />
+            <DialogPrimitive.Popup
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="edit-discard-confirm-title"
+              className="ui-dialog fixed top-1/2 left-1/2 z-[60] w-full max-w-[336px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 shadow-lg outline-none"
+            >
               <h2
                 id="edit-discard-confirm-title"
                 className="font-heading text-xl font-extrabold"
@@ -584,10 +603,10 @@ function EditMemberContent({
                   Discard
                 </Button>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </DialogPrimitive.Popup>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      </DialogPrimitive.Popup>
+    </>
   );
 }

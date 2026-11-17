@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, type ChangeEvent, type RefObject } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type RefObject,
+} from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -23,6 +29,7 @@ type PhotoStepProps = {
   formError?: string;
   facingMode: CameraFacingMode;
   isStartingCamera: boolean;
+  isStreamReady?: boolean;
   hasMultipleCameras: boolean;
   cameraError: string | null;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -48,6 +55,7 @@ export function PhotoStep({
   formError,
   facingMode,
   isStartingCamera,
+  isStreamReady = !isStartingCamera,
   hasMultipleCameras,
   cameraError,
   videoRef,
@@ -65,6 +73,18 @@ export function PhotoStep({
   onNext,
 }: PhotoStepProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showCaptureFlash, setShowCaptureFlash] = useState(false);
+
+  useEffect(() => {
+    if (!showCaptureFlash) return;
+    const timer = window.setTimeout(() => setShowCaptureFlash(false), 200);
+    return () => window.clearTimeout(timer);
+  }, [showCaptureFlash]);
+
+  function handleCaptureClick() {
+    setShowCaptureFlash(true);
+    onCapture();
+  }
 
   useEffect(() => {
     if (subState !== "camera") return;
@@ -204,7 +224,8 @@ export function PhotoStep({
                   <video
                     ref={videoRef}
                     aria-label="Member camera preview"
-                    className={`h-full w-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
+                    data-state={isStreamReady ? "ready" : "loading"}
+                    className={`camera-preview h-full w-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
                     muted
                     playsInline
                   />
@@ -232,6 +253,13 @@ export function PhotoStep({
                   </span>
                 </>
               )}
+              {showCaptureFlash && (
+                <div
+                  aria-hidden="true"
+                  data-testid="camera-capture-flash"
+                  className="camera-flash pointer-events-none absolute inset-0 z-10 bg-white"
+                />
+              )}
             </div>
 
             {isEdit && subState === "camera" && (
@@ -249,7 +277,7 @@ export function PhotoStep({
                   <Button
                     type="button"
                     className="h-14 min-h-11 text-base font-bold"
-                    onClick={onCapture}
+                    onClick={handleCaptureClick}
                     disabled={Boolean(cameraError) || isStartingCamera}
                   >
                     <Camera className="size-5" />
@@ -307,7 +335,7 @@ export function PhotoStep({
               <Button
                 type="button"
                 className="h-14 min-h-11 w-full text-base font-bold sm:order-3 sm:w-auto sm:min-w-[180px]"
-                onClick={onCapture}
+                onClick={handleCaptureClick}
                 disabled={Boolean(cameraError) || isStartingCamera}
               >
                 <Camera className="size-5" />

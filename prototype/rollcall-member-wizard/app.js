@@ -48,20 +48,20 @@ function screen(s){
   if (s.step === 'photo' || s.step === 'captured'){
     const cap = s.step === 'captured';
     return `${st}${topbar()}${steps(1)}
-    <section class="content photo">
+    <div class="step-viewport"><section class="content photo">
       <h2>Add a photo</h2>
       <p class="helper">Volunteers use this to recognise them at the door.</p>
       <div class="cam">${cap
         ? `<img class="shot" src="${PHOTO}" alt="Captured photo"><span class="added"><span>${ICON.check}</span>Photo added</span>`
         : `<div class="oval"></div><span class="live">Camera on</span><button class="flip" aria-label="Switch camera">${ICON.flip}</button><span class="tag">${ICON.face}Line their face up with the oval</span>`}</div>
-    </section>
+    </section></div>
     ${cap
       ? `<footer class="footer split"><button class="btn btn-outline" data-act="retake">${ICON.camera}Retake</button><button class="btn btn-primary" data-act="next">Next${ICON.arrow}</button><i class="home"></i></footer>`
       : `<footer class="footer"><button class="btn btn-primary" data-act="take">${ICON.camera}Take photo</button><button class="btn btn-tint" data-act="upload">${ICON.upload}Upload from device</button><button class="link" data-act="skip">Skip for now</button><i class="home"></i></footer>`}`;
   }
   if (s.step === 'details'){
     return `${st}${topbar()}${steps(2)}
-    <section class="content">
+    <div class="step-viewport"><section class="content">
       <h2>Member details</h2>
       <div class="who">${thumb(s)}<div><b class="${s.name?'':'empty'}">${s.name?esc(s.name):'New member'}</b><span>${s.id?esc(s.id):'No member ID yet'}</span></div><button class="edit" data-act="photo">${s.photo?'Change':'Add photo'}</button></div>
       <div class="fields">
@@ -69,12 +69,12 @@ function screen(s){
         ${field({key:'id',label:'Member ID',icon:ICON.id,ph:'MEMBER-001',val:s.id})}
         ${field({key:'dob',label:'Date of birth',icon:ICON.cal,ph:'DD/MM/YYYY',val:s.dobText})}
       </div>
-    </section>
+    </section></div>
     <footer class="footer split"><button class="btn btn-outline" data-act="back">${ICON.back}Back</button><button class="btn btn-primary" data-act="next">Next${ICON.arrow}</button><i class="home"></i></footer>`;
   }
   if (s.step === 'contact'){
     return `${st}${topbar()}${steps(3)}
-    <section class="content">
+    <div class="step-viewport"><section class="content">
       <h2>Contact details<span class="opt">Optional</span></h2>
       <div class="fields">
         ${field({key:'email',label:'Email',icon:ICON.mail,ph:'name@example.com',type:'email',val:s.email})}
@@ -87,19 +87,19 @@ function screen(s){
         ${s.id?`<button class="chip" data-act="back"><span class="ic">${ICON.id}</span>${esc(s.id)}</button>`:''}
         ${s.dobText?`<button class="chip" data-act="back"><span class="ic">${ICON.cal}</span>${esc(s.dobText)}</button>`:''}
       </div></div>
-    </section>
+    </section></div>
     <footer class="footer split even"><button class="btn btn-outline" data-act="back">${ICON.back}Back</button><button class="btn btn-primary" data-act="create">Create &amp; generate QR</button><i class="home"></i></footer>`;
   }
   // done
   return `${st}${topbar('Member created')}
-    <section class="content">
+    <div class="step-viewport"><section class="content">
       <div class="done-top"><span class="okbig">${ICON.check}</span><h2>${esc(s.name)} is set up</h2><p>Their QR code is ready to print or send.</p></div>
       <div class="qrcard">
         <div class="person">${thumb(s)}<div><b>${esc(s.name)}</b><span>${esc(s.id||'')}</span></div></div>
         <div class="qrbox"><img class="qr" src="assets/qr-member-001.svg" alt="QR code for ${esc(s.id)}"><span class="badge"><img src="${MARK}" alt=""></span></div>
         <p class="cap">${esc(s.id)} <span>· RollCall</span></p>
       </div>
-    </section>
+    </section></div>
     <footer class="footer"><button class="btn btn-primary" data-act="download">${ICON.download}Download QR</button><button class="btn btn-tint" data-act="another">${ICON.plus}Add another member</button><button class="link" data-act="close">Done</button><i class="home"></i></footer>`;
 }
 
@@ -114,13 +114,73 @@ function renderStatic(){
 }
 
 // interactive prototype
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function prototype(el){
   const blank = () => ({step:'photo', photo:false, name:'', id:'', dobText:'', email:'', phone:'', address:'', errName:''});
   let s = blank();
   const order = ['photo','details','contact','done'];
-  const go = step => { s.step = step; draw(); };
+  const go = (step, direction='forward') => swapStep(step, direction);
   function draw(){
     el.innerHTML = screen(s);
+    const n = el.querySelector('[data-k="name"]');
+    if (s.step==='details' && n && !s._swapping) { n.focus(); n.setSelectionRange(n.value.length,n.value.length); }
+  }
+  async function swapStep(step, direction){
+    if (s._swapping) return;
+    const viewport = el.querySelector('.step-viewport');
+    const pane = viewport && viewport.querySelector('.content');
+    if (!viewport || !pane || document.body.classList.contains('still')){
+      s.step = step;
+      draw();
+      return;
+    }
+    s._swapping = true;
+    const reduce = reduceMotion();
+    const fromH = viewport.getBoundingClientRect().height;
+    viewport.style.height = fromH + 'px';
+    viewport.style.overflow = 'hidden';
+    const exitX = reduce ? 0 : (direction === 'forward' ? -8 : 8);
+    const enterX = reduce ? 0 : (direction === 'forward' ? 12 : -12);
+    pane.style.transition = reduce
+      ? 'opacity 120ms cubic-bezier(.3, 0, 1, 1)'
+      : 'opacity 120ms cubic-bezier(.3, 0, 1, 1), transform 120ms cubic-bezier(.3, 0, 1, 1)';
+    pane.style.opacity = '0';
+    pane.style.transform = `translateX(${exitX}px)`;
+    await wait(120);
+    pane.style.visibility = 'hidden';
+    s.step = step;
+    draw();
+    const vp = el.querySelector('.step-viewport');
+    const next = vp && vp.querySelector('.content');
+    if (!vp || !next){ s._swapping = false; return; }
+    vp.style.height = fromH + 'px';
+    vp.style.overflow = 'hidden';
+    next.style.opacity = '0';
+    next.style.visibility = 'visible';
+    next.style.transform = `translateX(${enterX}px)`;
+    next.style.transition = 'none';
+    const toH = next.scrollHeight;
+    void next.offsetWidth;
+    const enterMs = reduce ? 120 : 200;
+    next.style.transition = reduce
+      ? 'opacity 120ms cubic-bezier(0, 0, 0, 1)'
+      : 'opacity 200ms cubic-bezier(0, 0, 0, 1), transform 200ms cubic-bezier(0, 0, 0, 1)';
+    next.style.opacity = '1';
+    next.style.transform = 'translateX(0)';
+    if (!reduce && Math.round(toH) !== Math.round(fromH)){
+      vp.style.transition = 'height 200ms cubic-bezier(.2, 0, 0, 1)';
+      vp.style.height = toH + 'px';
+    }
+    await wait(enterMs);
+    next.style.transition = '';
+    next.style.opacity = '';
+    next.style.transform = '';
+    vp.style.height = '';
+    vp.style.overflow = '';
+    vp.style.transition = '';
+    s._swapping = false;
     const n = el.querySelector('[data-k="name"]');
     if (s.step==='details' && n) { n.focus(); n.setSelectionRange(n.value.length,n.value.length); }
   }
@@ -134,15 +194,15 @@ function prototype(el){
   el.addEventListener('click', e => {
     const a = e.target.closest('[data-act]')?.dataset.act; if (!a) return;
     if (a==='take' || a==='upload') { s.photo = true; s.step='captured'; draw(); const c=el.querySelector('.cam'); c.classList.add('flash'); }
-    if (a==='retake') { s.photo=false; go('photo'); }
-    if (a==='skip') { s.photo=false; go('details'); }
-    if (a==='photo') go(s.photo?'captured':'photo');
+    if (a==='retake') { s.photo=false; go('photo', 'back'); }
+    if (a==='skip') { s.photo=false; go('details', 'forward'); }
+    if (a==='photo') go(s.photo?'captured':'photo', 'back');
     if (a==='next') {
-      if (s.step==='photo'||s.step==='captured') go('details');
-      else if (s.step==='details') { if (!s.name.trim()) { s.errName='Enter the member’s name to continue'; draw(); } else go('contact'); }
+      if (s.step==='photo'||s.step==='captured') go('details', 'forward');
+      else if (s.step==='details') { if (!s.name.trim()) { s.errName='Enter the member’s name to continue'; draw(); } else go('contact', 'forward'); }
     }
-    if (a==='back') go(s.step==='contact' ? 'details' : (s.photo?'captured':'photo'));
-    if (a==='create') go('done');
+    if (a==='back') go(s.step==='contact' ? 'details' : (s.photo?'captured':'photo'), 'back');
+    if (a==='create') go('done', 'forward');
     if (a==='another' || a==='close') { s = blank(); draw(); }
     if (a==='download') { const l=document.createElement('a'); l.href='assets/qr-member-001.svg'; l.download=`${s.id||'member'}-qr.svg`; l.click(); }
   });

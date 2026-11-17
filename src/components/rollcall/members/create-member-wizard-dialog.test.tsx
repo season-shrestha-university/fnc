@@ -263,7 +263,7 @@ describe("CreateMemberWizardDialog", () => {
       screen.getByRole("button", { name: "Upload from device" }),
     ).toBeEnabled();
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
-    expect(screen.getByText("Member details")).toBeInTheDocument();
+    expect(await screen.findByText("Member details")).toBeInTheDocument();
   });
 
   it("validates Name on Details, clears error on typing, and preserves values across Back/Next", async () => {
@@ -279,7 +279,7 @@ describe("CreateMemberWizardDialog", () => {
     expect(screen.getByText("Step 2 of 3")).toBeInTheDocument();
 
     // Whitespace-only name stays on Details with inline error and focus
-    const nameInput = screen.getByLabelText(/Name/);
+    const nameInput = await screen.findByLabelText(/Name/);
     fireEvent.change(nameInput, { target: { value: "   " } });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
@@ -291,9 +291,11 @@ describe("CreateMemberWizardDialog", () => {
 
     // Typing clears the error immediately
     fireEvent.change(nameInput, { target: { value: "Bahadur Gurung" } });
-    expect(
-      screen.queryByText("Enter the member's name to continue"),
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Enter the member's name to continue"),
+      ).not.toBeInTheDocument();
+    });
 
     fireEvent.change(screen.getByLabelText("Member ID"), {
       target: { value: "MEMBER-001" },
@@ -302,18 +304,18 @@ describe("CreateMemberWizardDialog", () => {
 
     // Step 3: Contact
     expect(screen.getByText("Step 3 of 3")).toBeInTheDocument();
-    const emailInput = screen.getByLabelText("Email");
+    const emailInput = await screen.findByLabelText("Email");
     fireEvent.change(emailInput, { target: { value: "bahadur@example.com" } });
 
     // Go Back to Details and forward again — email must be preserved
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByText("Member details")).toBeInTheDocument();
+    expect(await screen.findByText("Member details")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
-    expect(screen.getByLabelText("Email")).toHaveValue("bahadur@example.com");
+    expect(await screen.findByLabelText("Email")).toHaveValue("bahadur@example.com");
 
     // Summary chips jump to Photo and Details
     fireEvent.click(screen.getByRole("button", { name: "No photo" }));
-    expect(screen.getByText("Add a photo")).toBeInTheDocument();
+    expect(await screen.findByText("Add a photo")).toBeInTheDocument();
   });
 
   it("confirms discard when dirty on Close/Esc and closes immediately when empty", async () => {
@@ -327,7 +329,7 @@ describe("CreateMemberWizardDialog", () => {
     // Dirty form prompts confirmation
     props.onClose.mockClear();
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
-    fireEvent.change(screen.getByLabelText(/Name/), {
+    fireEvent.change(await screen.findByLabelText(/Name/), {
       target: { value: "Maya Thapa" },
     });
     fireEvent.keyDown(window, { key: "Escape" });
@@ -353,7 +355,7 @@ describe("CreateMemberWizardDialog", () => {
 
     const { props } = renderDialog();
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
-    fireEvent.change(screen.getByLabelText(/Name/), {
+    fireEvent.change(await screen.findByLabelText(/Name/), {
       target: { value: "Bahadur Gurung" },
     });
     fireEvent.change(screen.getByLabelText("Member ID"), {
@@ -362,7 +364,7 @@ describe("CreateMemberWizardDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
 
     // Optional contact fields never disable submit
-    const submitBtn = screen.getByRole("button", {
+    const submitBtn = await screen.findByRole("button", {
       name: "Create & generate QR",
     });
     expect(submitBtn).toBeEnabled();
@@ -382,7 +384,7 @@ describe("CreateMemberWizardDialog", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Create & generate QR" }),
+      await screen.findByRole("button", { name: "Create & generate QR" }),
     );
 
     // While submitting: buttons disabled, Creating... shown, close blocked
@@ -429,7 +431,7 @@ describe("CreateMemberWizardDialog", () => {
       screen.getByRole("button", { name: "Add another member" }),
     );
     expect(props.onRefresh).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Add a photo")).toBeInTheDocument();
+    expect(await screen.findByText("Add a photo")).toBeInTheDocument();
   });
 
   it("closes and refreshes list when clicking Done", async () => {
@@ -447,12 +449,12 @@ describe("CreateMemberWizardDialog", () => {
     const { props } = renderDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
-    fireEvent.change(screen.getByLabelText(/Name/), {
+    fireEvent.change(await screen.findByLabelText(/Name/), {
       target: { value: "Sita Limbu" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Next" }));
     fireEvent.click(
-      screen.getByRole("button", { name: "Create & generate QR" }),
+      await screen.findByRole("button", { name: "Create & generate QR" }),
     );
 
     await waitFor(() => {

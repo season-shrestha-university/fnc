@@ -11,7 +11,7 @@ import {
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import type {
   WizardErrors,
   WizardFormValues,
@@ -146,16 +146,7 @@ export function DetailsStep({
               }`}
             />
           </div>
-          {errors.name && (
-            <p
-              id="wizard-name-error"
-              role="alert"
-              className="flex items-center gap-1.5 text-sm font-bold text-destructive"
-            >
-              <AlertCircle className="size-4 shrink-0" />
-              {errors.name}
-            </p>
-          )}
+          <FieldError id="wizard-name-error" message={errors.name} />
         </div>
 
         <div className="grid gap-1.5">
@@ -193,16 +184,7 @@ export function DetailsStep({
               }`}
             />
           </div>
-          {errors.memberId && (
-            <p
-              id="wizard-member-id-error"
-              role="alert"
-              className="flex items-center gap-1.5 text-sm font-bold text-destructive"
-            >
-              <AlertCircle className="size-4 shrink-0" />
-              {errors.memberId}
-            </p>
-          )}
+          <FieldError id="wizard-member-id-error" message={errors.memberId} />
         </div>
 
         <div className="grid gap-1.5">

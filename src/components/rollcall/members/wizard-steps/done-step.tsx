@@ -146,7 +146,7 @@ export function DoneStep({
                 unoptimized
               />
             ) : (
-              <div className="size-[168px] animate-pulse rounded-lg bg-muted" />
+              <div className="skeleton-pulse size-[168px] rounded-lg bg-muted" />
             )}
           </div>
 

@@ -82,19 +82,13 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
         ]),
       );
 
-    const toast = page
-      .locator(
-        '[data-testid="scan-toast"], [role="status"], [data-sonner-toast]',
-      )
-      .first();
+    const toast = page.locator('[data-testid="scan-toast"]').first();
     await expect(toast).toBeVisible();
-
-    const boundingBox = await toast.boundingBox();
-    expect(boundingBox).not.toBeNull();
-    expect(boundingBox!.y).toBeLessThan(150);
-
+    await expect(toast).toHaveAttribute("data-variant", "success");
     await expect(toast).toContainText(memberName);
     await expect(toast).toContainText(memberId);
+    await expect(toast.getByRole("button", { name: "Undo" })).toBeVisible();
+    await expect(toast.getByRole("button", { name: "Done" })).toBeVisible();
   });
 
   test("plays failure beep sound and shows error state on invalid QR scan", async ({
@@ -118,12 +112,9 @@ test.describe("QR Scanner Audio & Top Toast Feedback (BDD)", () => {
         ]),
       );
 
-    const errorToast = page
-      .locator(
-        '[data-testid="scan-toast"], [role="status"], [data-sonner-toast]',
-      )
-      .first();
+    const errorToast = page.locator('[data-testid="scan-toast"]').first();
     await expect(errorToast).toBeVisible();
+    await expect(errorToast).toHaveAttribute("data-variant", "error");
     await expect(errorToast).toContainText(/not found|invalid|error/i);
   });
 });

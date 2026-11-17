@@ -185,7 +185,7 @@ describe("EditMemberDialog", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("validates Name immediately, updates header, and clears dots when reverted", () => {
+  it("validates Name immediately, updates header, and clears dots when reverted", async () => {
     renderDialog();
 
     fireEvent.click(screen.getByRole("tab", { name: "Details" }));
@@ -202,7 +202,11 @@ describe("EditMemberDialog", () => {
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
 
     fireEvent.change(nameInput, { target: { value: "Bahadur Gurung" } });
-    expect(screen.queryByText("Enter the member’s name")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Enter the member’s name"),
+      ).not.toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: "Save changes" })).toBeDisabled();
     expect(screen.queryByLabelText("Unsaved changes")).not.toBeInTheDocument();
   });

@@ -108,13 +108,13 @@ export function FieldsStep({
               <span>{field}</span>
               <span
                 aria-hidden="true"
-                className={`relative h-8 w-[52px] shrink-0 rounded-full transition-colors ${
+                className={`relative h-8 w-[52px] shrink-0 rounded-full transition-colors duration-motion-fast ease-motion-standard ${
                   isPressed ? "bg-primary" : "bg-[#C5CDD0]"
                 }`}
               >
                 <span
-                  className={`absolute top-1 size-6 rounded-full bg-white transition-[left] ${
-                    isPressed ? "left-6" : "left-1"
+                  className={`absolute top-1 left-1 size-6 rounded-full bg-white transition-transform duration-motion-fast ease-motion-standard ${
+                    isPressed ? "translate-x-5" : "translate-x-0"
                   }`}
                 />
               </span>

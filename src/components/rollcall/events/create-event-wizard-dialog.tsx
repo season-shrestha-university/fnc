@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 
 import {
@@ -18,6 +19,10 @@ import { DoneStep } from "@/components/rollcall/events/steps/done-step";
 import { DiscardChangesSheet } from "@/components/rollcall/events/steps/event-confirm-sheets";
 import { FieldsStep } from "@/components/rollcall/events/steps/fields-step";
 import { defaultTrackedFields } from "@/components/rollcall/shared/member-utils";
+import {
+  WizardStepViewport,
+  type WizardDirection,
+} from "@/components/rollcall/shared/wizard-step-viewport";
 import { getCurrentDate } from "@/lib/date";
 
 export type CreateEventWizardDialogProps = {
@@ -33,8 +38,23 @@ export type CreateEventWizardDialogProps = {
 };
 
 export function CreateEventWizardDialog(props: CreateEventWizardDialogProps) {
-  if (!props.open) return null;
-  return <CreateEventWizardContent {...props} />;
+  const [prevOpen, setPrevOpen] = useState(props.open);
+  const [sessionKey, setSessionKey] = useState(0);
+
+  if (props.open !== prevOpen) {
+    setPrevOpen(props.open);
+    if (props.open) {
+      setSessionKey((key) => key + 1);
+    }
+  }
+
+  return (
+    <DialogPrimitive.Root open={props.open}>
+      <DialogPrimitive.Portal>
+        <CreateEventWizardContent key={sessionKey} {...props} />
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
 }
 
 function CreateEventWizardContent({
@@ -46,6 +66,7 @@ function CreateEventWizardContent({
   const router = useRouter();
   const [initialDate] = useState(() => getCurrentDate());
   const [step, setStep] = useState<EventWizardStep>("basics");
+  const [direction, setDirection] = useState<WizardDirection>("forward");
   const [values, setValues] = useState<EventFormValues>(() => ({
     name: "",
     eventDate: initialDate,
@@ -134,6 +155,7 @@ function CreateEventWizardContent({
       return false;
     }
     setErrors({});
+    setDirection("forward");
     setStep("fields");
     return true;
   }
@@ -149,6 +171,7 @@ function CreateEventWizardContent({
         trackedFields: normalizeTrackedFields(values.trackedFields),
       });
       setSavedId(id);
+      setDirection("forward");
       setStep("done");
     } catch (error) {
       setErrors({
@@ -180,19 +203,16 @@ function CreateEventWizardContent({
     : "Event created";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-foreground/50 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          requestClose();
-        }
-      }}
-    >
-      <div
+    <>
+      <DialogPrimitive.Backdrop
+        onClick={requestClose}
+        className="ui-backdrop fixed inset-0 z-50 bg-foreground/50"
+      />
+      <DialogPrimitive.Popup
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-event-wizard-title"
-        className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
+        className="ui-dialog ui-dialog-responsive-sheet fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
       >
         <div aria-live="polite" className="sr-only">
           {liveAnnouncement}
@@ -242,52 +262,65 @@ function CreateEventWizardContent({
           </div>
         )}
 
-        {step === "basics" && (
-          <BasicsStep
-            mode="create"
-            values={values}
-            errors={errors}
-            headingRef={headingRef}
-            focusNameTick={focusNameTick}
-            isSubmitting={isSubmitting}
-            onNameChange={handleNameChange}
-            onDateChange={handleDateChange}
-            onCancel={requestClose}
-            onNext={handleNext}
-          />
-        )}
+        <WizardStepViewport
+          stepKey={step}
+          direction={direction}
+          onStepVisible={() => headingRef.current?.focus()}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {(renderedStep) => (
+            <>
+              {renderedStep === "basics" && (
+                <BasicsStep
+                  mode="create"
+                  values={values}
+                  errors={errors}
+                  headingRef={headingRef}
+                  focusNameTick={focusNameTick}
+                  isSubmitting={isSubmitting}
+                  onNameChange={handleNameChange}
+                  onDateChange={handleDateChange}
+                  onCancel={requestClose}
+                  onNext={handleNext}
+                />
+              )}
 
-        {step === "fields" && (
-          <FieldsStep
-            mode="create"
-            values={values}
-            errors={errors}
-            headingRef={headingRef}
-            isSubmitting={isSubmitting}
-            onToggleField={handleToggleField}
-            onBack={() => setStep("basics")}
-            onCreate={() => void handleCreate()}
-          />
-        )}
+              {renderedStep === "fields" && (
+                <FieldsStep
+                  mode="create"
+                  values={values}
+                  errors={errors}
+                  headingRef={headingRef}
+                  isSubmitting={isSubmitting}
+                  onToggleField={handleToggleField}
+                  onBack={() => {
+                    setDirection("back");
+                    setStep("basics");
+                  }}
+                  onCreate={() => void handleCreate()}
+                />
+              )}
 
-        {step === "done" && (
-          <DoneStep
-            eventName={values.name.trim()}
-            eventDate={values.eventDate}
-            headingRef={headingRef}
-            onStartCheckIn={handleStartCheckIn}
-            onBackToEvents={handleBackToEvents}
-          />
-        )}
+              {renderedStep === "done" && (
+                <DoneStep
+                  eventName={values.name.trim()}
+                  eventDate={values.eventDate}
+                  headingRef={headingRef}
+                  onStartCheckIn={handleStartCheckIn}
+                  onBackToEvents={handleBackToEvents}
+                />
+              )}
+            </>
+          )}
+        </WizardStepViewport>
 
-        {showDiscardConfirm && (
-          <DiscardChangesSheet
-            mode="create"
-            onKeepEditing={() => setShowDiscardConfirm(false)}
-            onDiscard={onClose}
-          />
-        )}
-      </div>
-    </div>
+        <DiscardChangesSheet
+          open={showDiscardConfirm}
+          mode="create"
+          onKeepEditing={() => setShowDiscardConfirm(false)}
+          onDiscard={onClose}
+        />
+      </DialogPrimitive.Popup>
+    </>
   );
 }

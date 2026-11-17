@@ -12,7 +12,7 @@ import {
 } from "@/components/rollcall/events/event-form-types";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -109,16 +109,7 @@ export function BasicsStep({
                 : "border-[1.5px] border-input"
             }`}
           />
-          {errors.name && (
-            <p
-              id="event-name-error"
-              role="alert"
-              className="flex items-center gap-1.5 text-sm font-bold text-destructive"
-            >
-              <AlertCircle className="size-4 shrink-0" aria-hidden="true" />
-              <span>{errors.name}</span>
-            </p>
-          )}
+          <FieldError id="event-name-error" message={errors.name} />
         </div>
 
         <div className="grid gap-1.5">

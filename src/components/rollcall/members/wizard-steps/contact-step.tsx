@@ -7,14 +7,13 @@ import {
   Calendar,
   IdCard,
   ImageOff,
-  Loader2,
   Mail,
   MapPin,
   Phone,
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { FieldError, Input } from "@/components/ui/input";
 import type {
   WizardErrors,
   WizardFormValues,
@@ -104,16 +103,7 @@ export function ContactStep({
               }`}
             />
           </div>
-          {errors.email && (
-            <p
-              id="wizard-email-error"
-              role="alert"
-              className="flex items-center gap-1.5 text-sm font-bold text-destructive"
-            >
-              <AlertCircle className="size-4 shrink-0" />
-              {errors.email}
-            </p>
-          )}
+          <FieldError id="wizard-email-error" message={errors.email} />
         </div>
 
         <div className="grid gap-1.5">
@@ -257,17 +247,12 @@ export function ContactStep({
           </Button>
           <Button
             type="submit"
+            loading={isSubmitting}
+            loadingText="Creating…"
             disabled={isSubmitting}
             className="h-14 min-h-11 text-base font-bold sm:min-w-[200px]"
           >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="size-5 animate-spin" />
-                Creating…
-              </>
-            ) : (
-              "Create & generate QR"
-            )}
+            Create & generate QR
           </Button>
         </div>
       </footer>

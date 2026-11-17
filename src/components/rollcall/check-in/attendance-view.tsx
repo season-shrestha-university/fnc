@@ -6,7 +6,6 @@ import {
   Check,
   Clock,
   Download,
-  Loader2,
   Search,
 } from "lucide-react";
 import { useSwipeable } from "react-swipeable";
@@ -177,10 +176,9 @@ export function MemberRow({
         aria-hidden={!isDeleting}
       >
         {isDeleting ? (
-          <Loader2
-            className="size-6 animate-spin"
-            aria-label="Removing check-in"
-          />
+          <span className="pending-pulse" aria-label="Removing check-in">
+            Removing…
+          </span>
         ) : (
           "Delete"
         )}

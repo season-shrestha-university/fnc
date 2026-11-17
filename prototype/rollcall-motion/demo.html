@@ -1,0 +1,896 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RollCall — Motion demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F5; --card:#FFFFFF; --text:#1A2B29; --muted:#5C676B; --line:#E3E7E9; --field:#8C979B;
+  --teal:#0E7C6B; --teal-dark:#0B5E52; --tint:#E3F2EF; --tint-2:#CDE8E2; --mint:#7FD8C6;
+  --red:#C2412D; --red-tint:#FCEBE7;
+  --font:"Manrope", system-ui, sans-serif; --m:20px;
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-duration-slow: 320ms;
+  --motion-duration-fast-exit: 84ms;
+  --motion-duration-base-exit: 140ms;
+  --motion-duration-slow-exit: 224ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-enter: cubic-bezier(0, 0, 0, 1);
+  --motion-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --motion-translate-step-exit: 8px;
+  --motion-translate-step-enter: 12px;
+  --motion-translate-dialog: 8px;
+  --motion-translate-error: 4px;
+  --motion-scale-press: 0.98;
+  --motion-scale-dot-from: 0.6;
+  --motion-hold-checkin: 2000ms;
+}
+html.reduce-motion{
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 120ms;
+  --motion-duration-slow: 120ms;
+  --motion-duration-fast-exit: 84ms;
+  --motion-duration-base-exit: 84ms;
+  --motion-duration-slow-exit: 84ms;
+  --motion-translate-step-exit: 0px;
+  --motion-translate-step-enter: 0px;
+  --motion-translate-dialog: 0px;
+  --motion-translate-error: 0px;
+  --motion-scale-press: 1;
+  --motion-scale-dot-from: 1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#E4E8EA;color:var(--text)}
+body{font-family:var(--font);font-size:17px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit;background:none;border:0}
+button{cursor:pointer}
+svg{display:block}
+.stage{padding:60px 68px 72px;width:max-content}
+.stage-head{margin-bottom:36px;display:flex;align-items:flex-end;justify-content:space-between;gap:48px;padding-bottom:18px;border-bottom:1px solid #D3D9DC}
+.stage-head .brand{display:flex;align-items:center;gap:12px}
+.stage-head .brand img{width:34px;height:34px}
+.stage-kicker{font-size:13px;font-weight:600;color:var(--muted)}
+.stage-title{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.grid{display:grid;grid-template-columns:repeat(3,390px);gap:48px 40px}
+.shot{margin:0;width:390px}
+.shot figcaption{margin-top:16px;font-size:15px;color:var(--muted);font-weight:500;max-width:390px}
+.shot figcaption b{color:var(--teal);font-weight:800;margin-right:8px}
+.replay{margin-top:12px;height:44px;padding:0 16px;border-radius:12px;background:var(--card);border:1.5px solid var(--line);font-size:15px;font-weight:700;color:var(--teal-dark);display:inline-flex;align-items:center;gap:8px;transition:transform var(--motion-duration-fast) var(--motion-ease-standard),background-color var(--motion-duration-fast) var(--motion-ease-standard)}
+.replay svg{width:16px;height:16px}
+.replay:hover{background:var(--tint);border-color:var(--tint-2)}
+.replay:active{transform:scale(var(--motion-scale-press))}
+.replay-row{display:flex;gap:8px;flex-wrap:wrap}
+.switch-row{display:flex;align-items:center;gap:12px;flex-shrink:0}
+.switch-row span{font-size:15px;font-weight:700;color:var(--text)}
+.switch-row small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
+.switch{width:52px;height:32px;border-radius:999px;background:#C5CDD0;position:relative;flex-shrink:0;transition:background var(--motion-duration-fast) var(--motion-ease-standard)}
+.switch i{position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:4px;left:4px;transform:translateX(0);transition:transform var(--motion-duration-fast) var(--motion-ease-standard)}
+.switch.on{background:var(--teal)}
+.switch.on i{transform:translateX(20px)}
+html.reduce-motion .switch,html.reduce-motion .switch i{transition:none}
+
+.phone{width:390px;height:844px;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column;border-radius:20px}
+.phone > *{flex-shrink:0}
+.status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:700}
+.status .sys{display:flex;gap:6px;align-items:center}
+.bars{display:flex;gap:2px;align-items:flex-end;height:11px}
+.bars i{width:3px;background:var(--text);border-radius:1px}
+.bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:6px}.bars i:nth-child(3){height:9px}.bars i:nth-child(4){height:11px}
+.batt{width:24px;height:12px;border:1.5px solid var(--text);border-radius:4px;padding:1.5px}
+.batt i{display:block;height:100%;width:72%;background:var(--text);border-radius:2px}
+.topbar{display:grid;grid-template-columns:48px 1fr 48px;align-items:center;padding:4px 16px 10px;gap:8px}
+.topbar h1{text-align:center;font-size:17px;font-weight:800}
+.appbar{display:flex;align-items:center;gap:12px;padding:6px var(--m) 14px}
+.appbar .titles{flex:1;min-width:0}
+.appbar h1{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.appbar p{font-size:14px;color:var(--muted);font-weight:500}
+.chipbtn{width:48px;height:48px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--text);flex:none}
+.chipbtn svg{width:22px;height:22px}
+.btn{height:56px;border-radius:12px;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px;padding:0 18px;width:100%;
+  transition:transform var(--motion-duration-fast) var(--motion-ease-standard), background-color var(--motion-duration-base) var(--motion-ease-standard)}
+.btn:active:not(:disabled){transform:scale(var(--motion-scale-press))}
+.btn-primary{background:var(--teal);color:#fff}
+.btn-primary:active:not(:disabled){background:var(--teal-dark)}
+.btn-primary:disabled{background:#C5CDD0;color:#fff;cursor:not-allowed}
+.btn-outline{background:var(--card);border:1.5px solid var(--field);color:var(--text)}
+.btn-danger{background:var(--red);color:#fff}
+.footer{background:var(--card);border-top:1px solid var(--line);padding:14px var(--m) 24px;display:grid;gap:10px}
+.footer.split{grid-template-columns:auto 1fr}
+.footer.split .btn-outline{width:auto;padding:0 20px}
+.footer .home{grid-column:1/-1;width:134px;height:5px;border-radius:5px;background:var(--text);margin:8px auto -12px}
+.content{flex:1 1 auto!important;min-height:0;overflow:hidden;padding:14px var(--m) 20px;position:relative}
+.content h2{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.helper{color:var(--muted);font-weight:500;margin-top:4px}
+.steps{padding:4px var(--m) 0}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.seg i{height:4px;border-radius:4px;background:#D5DCDF}
+.seg i.on{background:var(--teal)}
+.steps p{margin-top:10px;font-size:14px;font-weight:700;color:var(--muted)}
+.steps p b{color:var(--teal-dark)}
+.fields{margin-top:16px;display:grid;gap:16px}
+.field label{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;font-weight:700;margin-bottom:6px}
+.field label .req{color:var(--teal-dark)}
+.field label small{font-weight:600;color:var(--muted)}
+.input{display:flex;align-items:center;gap:10px;height:56px;background:var(--card);border:1.5px solid var(--field);border-radius:12px;padding:0 14px}
+.input input{flex:1;outline:0;min-width:0;font-size:17px;font-weight:500;background:transparent}
+.input input::placeholder{color:var(--muted);font-weight:500;opacity:1}
+.input svg{width:20px;height:20px;color:var(--muted);flex:none}
+.input.err{border:2px solid var(--red);padding:0 13.5px}
+.error{font-size:14px;font-weight:700;color:var(--red);margin-top:0;display:flex;gap:6px;align-items:center;
+  opacity:0;transform:translateY(calc(var(--motion-translate-error) * -1));max-height:0;overflow:hidden;
+  transition:opacity var(--motion-duration-base) var(--motion-ease-enter), transform var(--motion-duration-base) var(--motion-ease-enter), max-height var(--motion-duration-base) var(--motion-ease-enter), margin-top var(--motion-duration-base) var(--motion-ease-enter)}
+.error.show{opacity:1;transform:translateY(0);max-height:32px;margin-top:6px;overflow:visible}
+.error.hiding{opacity:0;transform:translateY(calc(var(--motion-translate-error) * -1));max-height:0;margin-top:0;overflow:hidden;
+  transition-duration:var(--motion-duration-base-exit);transition-timing-function:var(--motion-ease-exit)}
+.error svg{width:16px;height:16px;flex:none}
+
+.step-view{padding:14px var(--m) 20px; position:absolute; left:0; right:0; top:0; overflow:auto;
+  opacity:0; visibility:hidden; pointer-events:none; transform:translateX(0)}
+.step-view.on{opacity:1;visibility:visible;pointer-events:auto;transform:translateX(0);position:relative}
+/* Sequential swap: outgoing finishes and is hidden before the incoming step starts, so text never overlaps. */
+.step-view.exiting,
+.step-view.on.exiting{opacity:0;visibility:visible;pointer-events:none;position:absolute;
+  transition:opacity var(--motion-duration-fast) var(--motion-ease-exit),
+             transform var(--motion-duration-fast) var(--motion-ease-exit)}
+.step-view.exiting[data-direction="forward"]{transform:translateX(calc(var(--motion-translate-step-exit) * -1))}
+.step-view.exiting[data-direction="back"]{transform:translateX(var(--motion-translate-step-exit))}
+.step-view.enter-from{opacity:0;visibility:visible;pointer-events:none;position:relative;transition:none}
+.step-view.enter-from[data-direction="forward"]{transform:translateX(var(--motion-translate-step-enter))}
+.step-view.enter-from[data-direction="back"]{transform:translateX(calc(var(--motion-translate-step-enter) * -1))}
+.step-view.entering{opacity:1;visibility:visible;pointer-events:auto;position:relative;transform:translateX(0);
+  transition:opacity var(--motion-duration-base) var(--motion-ease-enter),
+             transform var(--motion-duration-base) var(--motion-ease-enter)}
+html.reduce-motion .step-view.entering{transition-duration:120ms}
+
+.track{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.track-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 16px;background:var(--card);border-radius:14px;width:100%;text-align:left;font-size:17px;font-weight:700}
+.track-row.locked{background:#EEF1F2;cursor:default}
+.track-row .meta{font-size:13px;font-weight:600;color:var(--muted)}
+.track-row.locked .left{display:flex;align-items:center;gap:10px}
+.track-row.locked svg{width:18px;height:18px;color:var(--field);flex:none}
+.prompt{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-bottom:10px;line-height:1.25}
+.toggle{width:52px;height:32px;border-radius:999px;background:#C5CDD0;position:relative;flex-shrink:0;transition:background var(--motion-duration-fast) var(--motion-ease-standard)}
+.toggle i{position:absolute;width:24px;height:24px;border-radius:50%;background:#fff;top:4px;left:4px;transform:translateX(0);transition:transform var(--motion-duration-fast) var(--motion-ease-standard)}
+.toggle.on{background:var(--teal)}
+.toggle.on i{transform:translateX(20px)}
+html.reduce-motion .toggle,html.reduce-motion .toggle i{transition:none}
+
+.who-row{display:flex;align-items:center;gap:12px;padding:2px var(--m) 10px}
+.who-row .thumb{width:48px;height:48px;border-radius:50%;background:var(--tint);color:var(--teal-dark);display:grid;place-items:center;font-size:15px;font-weight:800;flex:none}
+.who-row b{display:block;font-size:17px;font-weight:800;line-height:1.25;letter-spacing:-.01em}
+.who-row .idchip{display:inline-flex;align-items:center;margin-top:3px;height:24px;padding:0 8px;border-radius:999px;background:var(--card);border:1px solid var(--line);font-size:12px;font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}
+.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:2px var(--m) 0;position:relative}
+.tab{display:flex;flex-direction:column;align-items:center;gap:8px;min-height:44px;padding:0 2px 6px;position:relative;width:100%}
+.tab .bar{display:block;width:100%;height:4px;border-radius:4px;background:transparent}
+.tab .lbl{font-size:14px;font-weight:700;color:var(--muted);display:inline-flex;align-items:center;gap:6px;line-height:1}
+.tab.on .lbl{color:var(--teal-dark)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 2px var(--bg);
+  opacity:0;transform:scale(var(--motion-scale-dot-from));
+  transition:opacity var(--motion-duration-fast) var(--motion-ease-enter), transform var(--motion-duration-fast) var(--motion-ease-enter)}
+.tab .dot.on{opacity:1;transform:scale(1)}
+.tab .dot.out{opacity:0;transform:scale(var(--motion-scale-dot-from));transition-duration:var(--motion-duration-fast-exit);transition-timing-function:var(--motion-ease-exit)}
+.tab-ink{position:absolute;left:0;bottom:6px;height:4px;width:calc((100% - 12px) / 3);border-radius:4px;background:var(--teal);transform:translateX(0);pointer-events:none;
+  transition:transform var(--motion-duration-base) var(--motion-ease-standard)}
+.tabs[data-index="1"] .tab-ink{transform:translateX(calc(100% + 6px))}
+.tabs[data-index="2"] .tab-ink{transform:translateX(calc(200% + 12px))}
+.tab-track{position:absolute;left:0;right:0;bottom:6px;height:4px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;pointer-events:none}
+.tab-track i{background:#D5DCDF;border-radius:4px}
+.tab-panels{flex:1 1 auto;min-height:0;position:relative;overflow:hidden}
+.tab-panel{position:absolute;inset:0;padding:14px var(--m) 20px;overflow:auto;opacity:0;pointer-events:none;
+  transition:opacity var(--motion-duration-base) var(--motion-ease-standard)}
+.tab-panel.on{opacity:1;pointer-events:auto;position:relative}
+
+.sheet-scrim{position:absolute;inset:0;background:rgba(27,37,40,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:5;
+  opacity:0;pointer-events:none;transition:opacity var(--motion-duration-base) var(--motion-ease-standard)}
+.sheet-scrim.open{opacity:1;pointer-events:auto}
+.sheet-scrim.closing{opacity:0;pointer-events:none;transition-duration:var(--motion-duration-base-exit)}
+.dialog-card{width:100%;max-width:336px;background:var(--card);border-radius:16px;border:1px solid var(--line);padding:24px;
+  opacity:0;transform:translateY(var(--motion-translate-dialog));
+  transition:opacity var(--motion-duration-base) var(--motion-ease-enter), transform var(--motion-duration-base) var(--motion-ease-enter)}
+.sheet-scrim.open .dialog-card{opacity:1;transform:translateY(0)}
+.sheet-scrim.closing .dialog-card{opacity:0;transform:translateY(var(--motion-translate-dialog));transition-duration:var(--motion-duration-base-exit);transition-timing-function:var(--motion-ease-exit)}
+.dialog-card h2{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.dialog-card p{margin-top:8px;font-size:15px;font-weight:500;color:var(--muted)}
+.dialog-card .btns{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dialog-card .btns .btn{height:48px;font-size:16px;white-space:nowrap;padding:0 12px}
+
+.summary{background:var(--teal);color:#fff;border-radius:16px;margin:0 var(--m);padding:16px 18px 18px}
+.summary-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600}
+.pill-live{display:inline-flex;align-items:center;gap:7px;background:var(--teal-dark);padding:4px 10px 4px 9px;border-radius:999px;font-size:13px;font-weight:700}
+.pill-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mint)}
+html:not(.reduce-motion) .pill-live::before{animation:blink 1.6s ease-in-out infinite}
+@keyframes blink{50%{opacity:.3}}
+.summary-nums{display:flex;align-items:flex-end;justify-content:space-between;margin-top:6px}
+.big{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:18px;font-weight:600;letter-spacing:0;margin-left:6px;opacity:.95}
+.left{text-align:right;font-size:14px;font-weight:600;line-height:1.3}
+.left b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.bar{height:6px;background:var(--teal-dark);border-radius:99px;margin-top:14px;overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:#fff;border-radius:99px;transform:scaleX(.66);transform-origin:left center}
+.scanner{padding:12px}
+.finder{height:148px;border-radius:12px;background:#16201F;position:relative;overflow:hidden}
+.win{position:absolute;left:50%;top:50%;width:96px;height:96px;margin:-48px 0 0 -48px}
+.br{position:absolute;width:20px;height:20px;border:0 solid var(--mint)}
+.br.tl{left:0;top:0;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}
+.br.tr{right:0;top:0;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}
+.br.bl{left:0;bottom:0;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}
+.br.brr{right:0;bottom:0;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}
+.scan-line{position:absolute;left:10px;right:10px;height:2px;background:var(--mint);border-radius:2px;top:22px}
+html:not(.reduce-motion) .scan-line{animation:scan 2.6s ease-in-out infinite alternate}
+@keyframes scan{to{top:120px}}
+.finder .tag{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.14);color:#fff;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px}
+.card{background:var(--card);border-radius:16px;margin:0 var(--m)}
+.tl-card{padding:14px 16px 6px;flex:1;min-height:0}
+.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.card-head h2{font-size:17px;font-weight:800}
+.log{list-style:none}
+.log li{display:grid;grid-template-columns:46px 22px 1fr auto;align-items:center;min-height:52px}
+.log time{font-size:14px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.log .node{position:relative;align-self:stretch;display:flex;justify-content:center;align-items:center}
+.log .node::before{content:"";position:absolute;top:0;bottom:0;width:2px;background:var(--line)}
+.log li:first-child .node::before{top:50%}
+.log li:last-child .node::before{bottom:50%}
+.log .node i{width:12px;height:12px;border-radius:50%;background:var(--card);border:3px solid var(--teal);position:relative}
+.log .who{padding-left:10px;font-weight:700;line-height:1.25;font-size:15px}
+.log .who small{display:block;font-size:13px;font-weight:500;color:var(--muted)}
+.okchip{width:32px;height:32px;border-radius:50%;background:var(--tint);color:var(--teal);display:grid;place-items:center}
+.okchip svg{width:17px;height:17px}
+
+.check-scrim{position:absolute;left:0;right:0;bottom:0;top:0;background:rgba(27,37,40,.45);z-index:4;
+  opacity:0;pointer-events:none;transition:opacity var(--motion-duration-base) var(--motion-ease-standard)}
+.check-scrim.open{opacity:1;pointer-events:auto}
+.check-scrim.closing{opacity:0;pointer-events:none;transition-duration:var(--motion-duration-base-exit)}
+.check-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--teal);color:#fff;border-radius:24px 24px 20px 20px;padding:10px 20px 22px;z-index:5;
+  transform:translateY(102%);transition:transform var(--motion-duration-slow) var(--motion-ease-enter)}
+.check-sheet.open{transform:translateY(0)}
+.check-sheet.closing{transform:translateY(102%);transition-duration:var(--motion-duration-slow-exit);transition-timing-function:var(--motion-ease-exit)}
+html.reduce-motion .check-sheet{transform:none;opacity:0;transition:opacity var(--motion-duration-slow) var(--motion-ease-enter)}
+html.reduce-motion .check-sheet.open{opacity:1}
+html.reduce-motion .check-sheet.closing{opacity:0;transform:none;transition-duration:var(--motion-duration-slow-exit);transition-timing-function:var(--motion-ease-exit)}
+.handle{width:40px;height:4px;border-radius:4px;background:rgba(255,255,255,.4);margin:0 auto 20px}
+.sheet-top{display:flex;align-items:center;gap:12px}
+.check{width:48px;height:48px;border-radius:50%;background:#fff;color:var(--teal);display:grid;place-items:center;flex:none;
+  transform:scale(var(--motion-scale-dot-from));opacity:0;
+  transition:transform var(--motion-duration-fast) var(--motion-ease-enter), opacity var(--motion-duration-fast) var(--motion-ease-enter)}
+.check-sheet.open .check{transform:scale(1);opacity:1}
+.tick-path{stroke-dasharray:1;stroke-dashoffset:1}
+.check-sheet.open .tick-path{stroke-dashoffset:0;transition:stroke-dashoffset var(--motion-duration-slow) var(--motion-ease-standard) 180ms}
+html.reduce-motion .tick-path,
+html.reduce-motion .check-sheet.open .tick-path{stroke-dashoffset:0;transition:none}
+.sheet-top b{display:block;font-size:20px;font-weight:800;line-height:1.2}
+.sheet-top span{font-size:15px;font-weight:600;opacity:.95;font-variant-numeric:tabular-nums}
+.member{display:flex;align-items:center;gap:16px;background:var(--teal-dark);border-radius:16px;padding:16px;margin-top:20px}
+.avatar{width:64px;height:64px;border-radius:50%;background:var(--tint);color:var(--teal-dark);display:grid;place-items:center;font-size:22px;font-weight:800;flex:none}
+.member h3{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.idpill{display:inline-flex;margin-top:6px;font-size:14px;font-weight:700;background:rgba(255,255,255,.14);padding:3px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
+.sheet-actions{display:flex;gap:12px;margin-top:16px}
+.check-sheet .undo{flex:1;border:1.5px solid rgba(255,255,255,.7);color:#fff;background:transparent}
+.check-sheet .done{flex:1;background:#fff;color:var(--teal-dark)}
+.next{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:600}
+.next .trackbar{flex:1;height:4px;border-radius:4px;background:var(--teal-dark);overflow:hidden}
+.next .trackbar i{display:block;height:100%;width:100%;background:#fff;transform:scaleX(0);transform-origin:left center}
+.check-sheet.holding .next .trackbar i{transform:scaleX(1);transition:transform var(--motion-hold-checkin) linear}
+html.reduce-motion .check-sheet.holding .next .trackbar i,
+html.reduce-motion .next .trackbar i{transform:none;opacity:.35;transition:none}
+
+.mlist{flex:1;overflow:auto;padding:8px var(--m) 24px}
+.mlist .search{height:48px;background:var(--card);border:1.5px solid var(--line);border-radius:12px;display:flex;align-items:center;gap:10px;padding:0 14px;color:var(--muted);font-weight:600;margin-bottom:14px}
+.mlist .search svg{width:20px;height:20px}
+.mcard{background:var(--card);border-radius:16px;padding:14px;display:flex;align-items:center;gap:12px;width:100%;text-align:left;margin-top:8px}
+.mcard .thumb{width:52px;height:52px;border-radius:50%;background:var(--tint);color:var(--teal-dark);display:grid;place-items:center;font-size:16px;font-weight:800;flex:none}
+.mcard b{display:block;font-size:17px;font-weight:800;line-height:1.25}
+.mcard span{font-size:14px;font-weight:600;color:var(--muted)}
+.mcard .edit{margin-left:auto;font-size:15px;font-weight:700;color:var(--teal-dark);min-height:44px;padding:0 8px}
+.lead{padding:4px var(--m) 8px}
+.lead h2{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.lead p{color:var(--muted);font-weight:500;margin-top:2px}
+.face{width:180px;height:180px;border-radius:50%;background:var(--tint);color:var(--teal-dark);display:grid;place-items:center;font-size:48px;font-weight:800;margin:28px auto 0}
+
+html.solo,html.solo body{background:#F2F4F5;margin:0}
+html.solo .stage-head,html.solo .shot figcaption,html.solo .replay-row,html.solo .shot:not(.solo-keep){display:none !important}
+html.solo .grid{display:block}
+html.solo .stage{padding:0;width:390px}
+html.solo .shot.solo-keep .phone{border-radius:0}
+</style>
+</head>
+<body>
+<main class="stage" id="overview">
+  <header class="stage-head">
+    <div class="brand">
+      <img src="assets/rollcall-mark-32-teal.svg" width="34" height="34" alt="">
+      <div>
+        <p class="stage-kicker">RollCall · Motion</p>
+        <h1 class="stage-title">Live timings, with a Reduce motion switch</h1>
+      </div>
+    </div>
+    <label class="switch-row">
+      <span>Reduce motion<small>Simulates the prefers-reduced-motion fallback</small></span>
+      <button class="switch" id="reduce" type="button" role="switch" aria-checked="false" aria-label="Reduce motion"><i></i></button>
+    </label>
+  </header>
+  <div class="grid">
+
+    <figure class="shot solo-keep" id="shot-checkin">
+      <div class="phone" id="phone-checkin">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="appbar">
+          <button class="chipbtn" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6 9 12l6 6"/></svg></button>
+          <div class="titles"><h1>Saturday lunch</h1><p>FNC UK · door</p></div>
+        </div>
+        <div class="summary">
+          <div class="summary-top"><span>Checked in</span><span class="pill-live">Live</span></div>
+          <div class="summary-nums"><div class="big" id="ci-count">23<small> / 35</small></div><div class="left">Still to come<b id="ci-left">12</b></div></div>
+          <div class="bar"><i></i></div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="card scanner">
+          <div class="finder">
+            <span class="tag">Ready to scan</span>
+            <div class="win"><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i></div>
+            <i class="scan-line"></i>
+          </div>
+        </div>
+        <div style="height:12px"></div>
+        <div class="card tl-card">
+          <div class="card-head"><h2>Today</h2></div>
+          <ul class="log">
+            <li><time>10:41</time><span class="node"><i></i></span><span class="who">Amira Khan<small>FNC-0142</small></span><span class="okchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span></li>
+            <li><time>10:38</time><span class="node"><i></i></span><span class="who">David Chen<small>FNC-0088</small></span><span class="okchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span></li>
+            <li><time>10:36</time><span class="node"><i></i></span><span class="who">Priya Shah<small>FNC-0201</small></span><span class="okchip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 13 4 4L19 7"/></svg></span></li>
+          </ul>
+        </div>
+        <div class="check-scrim" id="ci-scrim"></div>
+        <div class="check-sheet" id="ci-sheet" role="dialog" aria-label="Checked in">
+          <div class="handle"></div>
+          <div class="sheet-top">
+            <div class="check">
+              <svg viewBox="0 0 26 26" width="26" height="26" aria-hidden="true">
+                <path class="tick-path" pathLength="1" d="M6.5 13.5 11 18 19.5 8.5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div><b>Checked in</b><span>10:42 · Saturday lunch</span></div>
+          </div>
+          <div class="member">
+            <div class="avatar">JN</div>
+            <div><h3>James Nwosu</h3><span class="idpill">FNC-0164</span></div>
+          </div>
+          <div class="sheet-actions">
+            <button class="btn undo" type="button" id="ci-undo">Undo</button>
+            <button class="btn done" type="button" id="ci-done">Done</button>
+          </div>
+          <div class="next"><span>Closes automatically</span><span class="trackbar"><i></i></span></div>
+        </div>
+      </div>
+      <figcaption><b>Check-in success</b> Hero moment. The sheet rises in 320ms, the tick draws, then a 2s hold with Undo still reachable.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="checkin-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay</button></div>
+    </figure>
+
+    <figure class="shot" id="shot-wizard">
+      <div class="phone" id="phone-wizard">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="topbar">
+          <button class="chipbtn" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <h1>Create event</h1>
+          <span></span>
+        </div>
+        <div class="steps">
+          <div class="seg" id="wz-seg"><i class="on"></i><i></i></div>
+          <p id="wz-label"><b>Step 1 of 2</b> · Basics</p>
+        </div>
+        <div class="content" id="wz-content" style="padding:0;position:relative;overflow:hidden">
+          <div class="step-view on" data-step="basics" id="wz-basics">
+            <h2>Event basics</h2>
+            <p class="helper">A name and a date. You can change the fields next.</p>
+            <div class="fields">
+              <div class="field">
+                <label>Event name <span class="req">Required</span></label>
+                <div class="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><input value="Saturday lunch" readonly></div>
+              </div>
+              <div class="field">
+                <label>Date</label>
+                <div class="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16"/></svg><input value="Sat 21 Nov 2026" readonly></div>
+              </div>
+            </div>
+          </div>
+          <div class="step-view" data-step="fields" id="wz-fields" hidden>
+            <p class="prompt">What should we record at the door?</p>
+            <div class="track">
+              <div class="track-row locked"><span class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Name</span><span class="meta">Always recorded</span></div>
+              <div class="track-row locked"><span class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Member ID</span><span class="meta">Always recorded</span></div>
+              <div class="track-row"><span>Email</span><span class="toggle"><i></i></span></div>
+              <div class="track-row"><span>Phone</span><span class="toggle"><i></i></span></div>
+              <div class="track-row"><span>Address</span><span class="toggle"><i></i></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer split">
+          <button class="btn btn-outline" type="button" id="wz-back" disabled>Back</button>
+          <button class="btn btn-primary" type="button" id="wz-next">Next</button>
+          <div class="home"></div>
+        </div>
+      </div>
+      <figcaption><b>Wizard steps</b> Sequential swap: the outgoing step fades out in 120ms, then the incoming step fades in over 200ms, so the two texts never mix.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="wizard-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay forward and back</button></div>
+    </figure>
+
+    <figure class="shot" id="shot-tabs">
+      <div class="phone" id="phone-tabs">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="topbar">
+          <button class="chipbtn" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <h1>Edit member</h1>
+          <span></span>
+        </div>
+        <div class="who-row">
+          <div class="thumb">AK</div>
+          <div><b>Amira Khan</b><span class="idchip">FNC-0142</span></div>
+        </div>
+        <div class="tabs" id="ed-tabs" data-index="0">
+          <div class="tab-track"><i></i><i></i><i></i></div>
+          <i class="tab-ink"></i>
+          <button class="tab on" type="button" data-tab="0"><span class="lbl">Photo <i class="dot" id="dot-0"></i></span><i class="bar"></i></button>
+          <button class="tab" type="button" data-tab="1"><span class="lbl">Details <i class="dot" id="dot-1"></i></span><i class="bar"></i></button>
+          <button class="tab" type="button" data-tab="2"><span class="lbl">Contact <i class="dot" id="dot-2"></i></span><i class="bar"></i></button>
+        </div>
+        <div class="tab-panels" id="ed-panels">
+          <div class="tab-panel on" data-panel="0">
+            <p class="helper">Current photo first. Retake, upload, or remove.</p>
+            <div class="face">AK</div>
+          </div>
+          <div class="tab-panel" data-panel="1" hidden>
+            <div class="fields" style="margin-top:0">
+              <div class="field">
+                <label>Name <span class="req">Required</span></label>
+                <div class="input"><input id="ed-name" value="Amira Khan"></div>
+              </div>
+              <div class="field">
+                <label>Member ID</label>
+                <div class="input" style="background:var(--bg);border-color:var(--line)"><input value="FNC-0142" readonly style="color:var(--muted);font-weight:600"></div>
+              </div>
+            </div>
+          </div>
+          <div class="tab-panel" data-panel="2" hidden>
+            <div class="fields" style="margin-top:0">
+              <div class="field"><label>Email <small>Optional</small></label><div class="input"><input value="amira@fnc.uk" readonly></div></div>
+              <div class="field"><label>Phone <small>Optional</small></label><div class="input"><input placeholder="Not added" readonly></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer">
+          <button class="btn btn-primary" type="button" id="ed-save" disabled>Save changes</button>
+          <div class="home"></div>
+        </div>
+      </div>
+      <figcaption><b>Edit tabs</b> The underline slides. Content crossfades. A dirty section gets a teal dot that scales in from 0.6.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="tabs-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay tabs and dirty dot</button></div>
+    </figure>
+
+    <figure class="shot" id="shot-dialog">
+      <div class="phone" id="phone-dialog">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="topbar">
+          <button class="chipbtn" type="button" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6 9 12l6 6"/></svg></button>
+          <h1>Members</h1>
+          <span></span>
+        </div>
+        <div class="lead"><h2>Directory</h2><p>48 members</p></div>
+        <div class="mlist">
+          <div class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="m20 20-4-4"/></svg>Search</div>
+          <div class="mcard"><div class="thumb">AK</div><div><b>Amira Khan</b><span>FNC-0142</span></div><span class="edit">Edit</span></div>
+          <div class="mcard"><div class="thumb">DC</div><div><b>David Chen</b><span>FNC-0088</span></div><span class="edit">Edit</span></div>
+          <div class="mcard"><div class="thumb">JN</div><div><b>James Nwosu</b><span>FNC-0164</span></div><span class="edit">Edit</span></div>
+        </div>
+        <div class="sheet-scrim" id="dlg-scrim">
+          <div class="dialog-card" role="dialog" aria-labelledby="dlg-title">
+            <h2 id="dlg-title">Discard changes?</h2>
+            <p>Amira’s details have unsaved edits. If you leave now, those changes will be lost.</p>
+            <div class="btns">
+              <button class="btn btn-outline" type="button" id="dlg-keep">Keep editing</button>
+              <button class="btn btn-danger" type="button" id="dlg-discard">Discard</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <figcaption><b>Dialog</b> Overlay fades in 200ms. The card lifts 8px into place. Exit runs in 140ms, 70% of the enter time.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="dialog-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay open and close</button></div>
+    </figure>
+
+    <figure class="shot" id="shot-error">
+      <div class="phone" id="phone-error">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="topbar">
+          <button class="chipbtn" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <h1>Create event</h1>
+          <span></span>
+        </div>
+        <div class="steps">
+          <div class="seg"><i class="on"></i><i></i></div>
+          <p><b>Step 1 of 2</b> · Basics</p>
+        </div>
+        <div class="content">
+          <h2>Event basics</h2>
+          <p class="helper">A name is required before you can continue.</p>
+          <div class="fields">
+            <div class="field">
+              <label>Event name <span class="req">Required</span></label>
+              <div class="input" id="err-input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3v4M16 3v4M4 10h16"/></svg><input id="err-field" value="Saturday lunch" readonly></div>
+              <div class="error" id="err-msg"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>Enter an event name to continue</div>
+            </div>
+            <div class="field">
+              <label>Date</label>
+              <div class="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16"/></svg><input value="Sat 21 Nov 2026" readonly></div>
+            </div>
+          </div>
+        </div>
+        <div class="footer split">
+          <button class="btn btn-outline" type="button" disabled>Back</button>
+          <button class="btn btn-primary" type="button" id="err-next">Next</button>
+          <div class="home"></div>
+        </div>
+      </div>
+      <figcaption><b>Inline error</b> The message drops 4px and fades in. The field border turns red. There is no shake.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="error-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay error</button></div>
+    </figure>
+
+    <figure class="shot" id="shot-toggle">
+      <div class="phone" id="phone-toggle">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="topbar">
+          <button class="chipbtn" type="button" aria-label="Close"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+          <h1>Create event</h1>
+          <span></span>
+        </div>
+        <div class="steps">
+          <div class="seg"><i class="on"></i><i class="on"></i></div>
+          <p><b>Step 2 of 2</b> · Check-in fields</p>
+        </div>
+        <div class="content">
+          <p class="prompt">What should we record at the door?</p>
+          <div class="track" id="tg-track">
+            <div class="track-row locked"><span class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Name</span><span class="meta">Always recorded</span></div>
+            <div class="track-row locked"><span class="left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="6" y="11" width="12" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Member ID</span><span class="meta">Always recorded</span></div>
+            <button class="track-row" type="button" data-toggle="email"><span>Email</span><span class="toggle" id="tg-email"><i></i></span></button>
+            <button class="track-row" type="button" data-toggle="phone"><span>Phone</span><span class="toggle" id="tg-phone"><i></i></span></button>
+            <button class="track-row" type="button" data-toggle="address"><span>Address</span><span class="toggle" id="tg-address"><i></i></span></button>
+            <button class="track-row" type="button" data-toggle="dob"><span>Date of birth</span><span class="toggle" id="tg-dob"><i></i></span></button>
+            <button class="track-row" type="button" data-toggle="photo"><span>Photo</span><span class="toggle" id="tg-photo"><i></i></span></button>
+          </div>
+        </div>
+        <div class="footer split">
+          <button class="btn btn-outline" type="button">Back</button>
+          <button class="btn btn-primary" type="button">Create event</button>
+          <div class="home"></div>
+        </div>
+      </div>
+      <figcaption><b>Toggle</b> The thumb travels 20px in 120ms. The track colour is the only everyday exception to transform-and-opacity.</figcaption>
+      <div class="replay-row"><button class="replay" type="button" id="toggle-replay"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12a8 8 0 1 0 2.2-5.5"/><path d="M4 4v5h5"/></svg>Replay Phone toggle</button></div>
+    </figure>
+
+  </div>
+</main>
+<script>
+(function () {
+  const reduced = () => document.documentElement.classList.contains("reduce-motion");
+  const ms = (full, reducedMs) => (reduced() ? reducedMs : full);
+  const params = new URLSearchParams(location.search);
+  if (params.get("solo") === "checkin") document.documentElement.classList.add("solo");
+
+  const reduceBtn = document.getElementById("reduce");
+  function setReduced(on) {
+    document.documentElement.classList.toggle("reduce-motion", on);
+    reduceBtn.classList.toggle("on", on);
+    reduceBtn.setAttribute("aria-checked", on ? "true" : "false");
+  }
+  reduceBtn.addEventListener("click", () =>
+    setReduced(!document.documentElement.classList.contains("reduce-motion"))
+  );
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches && !params.has("solo")) {
+    setReduced(true);
+  }
+
+  /* ---- Check-in hero ---- */
+  const sheet = document.getElementById("ci-sheet");
+  const scrim = document.getElementById("ci-scrim");
+  const countEl = document.getElementById("ci-count");
+  const leftEl = document.getElementById("ci-left");
+  let ciTimer, ciCloseTimer, ciOpen = false, ciBusy = false;
+
+  function resetTick() {
+    const path = sheet.querySelector(".tick-path");
+    path.style.transition = "none";
+    path.style.strokeDashoffset = reduced() ? "0" : "1";
+    void path.getBoundingClientRect();
+  }
+  function playTick() {
+    const path = sheet.querySelector(".tick-path");
+    if (reduced()) {
+      path.style.transition = "none";
+      path.style.strokeDashoffset = "0";
+      return;
+    }
+    path.style.transition = "stroke-dashoffset var(--motion-duration-slow) var(--motion-ease-standard) 180ms";
+    path.style.strokeDashoffset = "0";
+  }
+  function resetCount() {
+    countEl.innerHTML = '23<small> / 35</small>';
+    leftEl.textContent = "12";
+  }
+  function openCheckin() {
+    if (ciBusy) return;
+    ciBusy = true;
+    clearTimeout(ciTimer);
+    clearTimeout(ciCloseTimer);
+    sheet.classList.remove("open", "closing", "holding");
+    scrim.classList.remove("open", "closing");
+    resetTick();
+    void sheet.offsetWidth;
+    scrim.classList.add("open");
+    sheet.classList.add("open");
+    playTick();
+    ciOpen = true;
+    countEl.innerHTML = '24<small> / 35</small>';
+    leftEl.textContent = "11";
+    const enter = ms(320, 120);
+    ciTimer = setTimeout(() => {
+      if (!ciOpen) return;
+      sheet.classList.add("holding");
+      ciCloseTimer = setTimeout(closeCheckin, 2000);
+      ciBusy = false;
+    }, enter);
+  }
+  function closeCheckin() {
+    if (!ciOpen) return;
+    ciOpen = false;
+    clearTimeout(ciTimer);
+    clearTimeout(ciCloseTimer);
+    sheet.classList.remove("holding");
+    sheet.classList.add("closing");
+    scrim.classList.add("closing");
+    const exit = ms(224, 84);
+    setTimeout(() => {
+      sheet.classList.remove("open", "closing");
+      scrim.classList.remove("open", "closing");
+      resetTick();
+      ciBusy = false;
+    }, exit);
+  }
+  document.getElementById("checkin-replay").addEventListener("click", () => {
+    ciBusy = false;
+    ciOpen = false;
+    clearTimeout(ciTimer);
+    clearTimeout(ciCloseTimer);
+    sheet.classList.remove("open", "closing", "holding");
+    scrim.classList.remove("open", "closing");
+    resetCount();
+    resetTick();
+    void sheet.offsetWidth;
+    setTimeout(openCheckin, 40);
+  });
+  document.getElementById("ci-undo").addEventListener("click", closeCheckin);
+  document.getElementById("ci-done").addEventListener("click", closeCheckin);
+
+  /* Auto-play in video mode so Playwright only has to wait */
+  window.__openCheckin = openCheckin;
+  window.__closeCheckin = closeCheckin;
+  if (params.get("solo") === "checkin" && params.get("play") === "1") {
+    setTimeout(openCheckin, 300);
+  }
+
+  /* ---- Wizard ---- */
+  const wz = { step: "basics", moving: false };
+  const basics = document.getElementById("wz-basics");
+  const fields = document.getElementById("wz-fields");
+  const nextBtn = document.getElementById("wz-next");
+  const backBtn = document.getElementById("wz-back");
+  const seg = document.getElementById("wz-seg");
+  const label = document.getElementById("wz-label");
+
+  function setWizardChrome(step) {
+    const onFields = step === "fields";
+    seg.children[1].classList.toggle("on", onFields);
+    label.innerHTML = onFields
+      ? "<b>Step 2 of 2</b> · Check-in fields"
+      : "<b>Step 1 of 2</b> · Basics";
+    nextBtn.textContent = onFields ? "Create event" : "Next";
+    backBtn.disabled = !onFields;
+  }
+  function goWizard(to, direction) {
+    if (wz.moving || to === wz.step) return Promise.resolve();
+    wz.moving = true;
+    const fromEl = wz.step === "basics" ? basics : fields;
+    const toEl = to === "basics" ? basics : fields;
+    const viewport = document.getElementById("wz-content");
+    const reduceOn = reduced();
+    const exitMs = 120;
+    const enterMs = reduceOn ? 120 : 200;
+    const fromH = viewport.getBoundingClientRect().height;
+    viewport.style.height = fromH + "px";
+
+    fromEl.classList.remove("entering", "enter-from");
+    fromEl.setAttribute("data-direction", direction);
+    void fromEl.offsetWidth;
+    fromEl.classList.add("exiting");
+    fromEl.classList.remove("on");
+
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        fromEl.classList.remove("exiting");
+        fromEl.removeAttribute("data-direction");
+        fromEl.hidden = true;
+
+        toEl.hidden = false;
+        toEl.classList.remove("on", "exiting", "entering");
+        toEl.setAttribute("data-direction", direction);
+        toEl.classList.add("enter-from");
+
+        const toH = toEl.scrollHeight;
+        if (!reduceOn && Math.round(toH) !== Math.round(fromH)) {
+          viewport.style.transition = "height 200ms var(--motion-ease-standard)";
+          viewport.style.height = toH + "px";
+        } else if (reduceOn) {
+          viewport.style.transition = "none";
+          viewport.style.height = toH + "px";
+        }
+
+        void toEl.offsetWidth;
+        toEl.classList.remove("enter-from");
+        toEl.classList.add("entering", "on");
+        setWizardChrome(to);
+
+        setTimeout(() => {
+          toEl.classList.remove("entering");
+          toEl.removeAttribute("data-direction");
+          viewport.style.height = "";
+          viewport.style.transition = "";
+          wz.step = to;
+          wz.moving = false;
+          resolve();
+        }, enterMs);
+      }, exitMs);
+    });
+  }
+  window.__goWizard = goWizard;
+  window.__wizardState = () => ({ step: wz.step, moving: wz.moving });
+  nextBtn.addEventListener("click", () => {
+    if (wz.step === "basics") goWizard("fields", "forward");
+  });
+  backBtn.addEventListener("click", () => {
+    if (wz.step === "fields") goWizard("basics", "back");
+  });
+  document.getElementById("wizard-replay").addEventListener("click", async () => {
+    if (wz.step !== "basics") await goWizard("basics", "back");
+    await new Promise((r) => setTimeout(r, 280));
+    await goWizard("fields", "forward");
+    await new Promise((r) => setTimeout(r, 900));
+    await goWizard("basics", "back");
+  });
+
+  /* ---- Edit tabs + dirty dot ---- */
+  const tabsRoot = document.getElementById("ed-tabs");
+  const panels = [...document.querySelectorAll("#ed-panels .tab-panel")];
+  const tabBtns = [...tabsRoot.querySelectorAll(".tab")];
+  const saveBtn = document.getElementById("ed-save");
+  const nameInput = document.getElementById("ed-name");
+
+  function showDot(i, on) {
+    const dot = document.getElementById("dot-" + i);
+    if (on) {
+      dot.classList.remove("out");
+      void dot.offsetWidth;
+      dot.classList.add("on");
+    } else if (dot.classList.contains("on")) {
+      dot.classList.add("out");
+      dot.classList.remove("on");
+      setTimeout(() => dot.classList.remove("out"), ms(84, 0));
+    }
+  }
+  function setTab(i) {
+    tabsRoot.dataset.index = String(i);
+    tabBtns.forEach((b, n) => b.classList.toggle("on", n === i));
+    panels.forEach((p, n) => {
+      const on = n === i;
+      p.classList.toggle("on", on);
+      p.hidden = !on;
+    });
+  }
+  tabBtns.forEach((b) => b.addEventListener("click", () => setTab(+b.dataset.tab)));
+  nameInput.addEventListener("input", () => {
+    const isDirty = nameInput.value.trim() !== "Amira Khan";
+    showDot(1, isDirty);
+    saveBtn.disabled = !isDirty;
+  });
+  document.getElementById("tabs-replay").addEventListener("click", async () => {
+    nameInput.value = "Amira Khan";
+    showDot(1, false);
+    saveBtn.disabled = true;
+    setTab(0);
+    await new Promise((r) => setTimeout(r, 350));
+    setTab(1);
+    await new Promise((r) => setTimeout(r, 400));
+    nameInput.value = "Amira K.";
+    showDot(1, true);
+    saveBtn.disabled = false;
+    await new Promise((r) => setTimeout(r, 700));
+    setTab(2);
+    await new Promise((r) => setTimeout(r, 900));
+    setTab(1);
+  });
+
+  /* ---- Dialog ---- */
+  const dlg = document.getElementById("dlg-scrim");
+  let dlgTimer, dlgOpen = false;
+  function openDlg() {
+    dlg.classList.remove("closing");
+    void dlg.offsetWidth;
+    dlg.classList.add("open");
+    dlgOpen = true;
+  }
+  function closeDlg() {
+    if (!dlgOpen) return;
+    dlgOpen = false;
+    dlg.classList.add("closing");
+    setTimeout(() => dlg.classList.remove("open", "closing"), ms(140, 84));
+  }
+  document.getElementById("dialog-replay").addEventListener("click", () => {
+    clearTimeout(dlgTimer);
+    dlg.classList.remove("open", "closing");
+    void dlg.offsetWidth;
+    openDlg();
+    dlgTimer = setTimeout(closeDlg, 1400 + ms(200, 120));
+  });
+  document.getElementById("dlg-keep").addEventListener("click", closeDlg);
+  document.getElementById("dlg-discard").addEventListener("click", closeDlg);
+
+  /* ---- Error ---- */
+  const errInput = document.getElementById("err-input");
+  const errField = document.getElementById("err-field");
+  const errMsg = document.getElementById("err-msg");
+  const errNext = document.getElementById("err-next");
+  function showError(on) {
+    if (on) {
+      errField.value = "";
+      errInput.classList.add("err");
+      errMsg.classList.remove("hiding");
+      void errMsg.offsetWidth;
+      errMsg.classList.add("show");
+      errNext.disabled = true;
+    } else {
+      errField.value = "Saturday lunch";
+      errInput.classList.remove("err");
+      errMsg.classList.add("hiding");
+      errMsg.classList.remove("show");
+      errNext.disabled = false;
+      setTimeout(() => errMsg.classList.remove("hiding"), ms(140, 84));
+    }
+  }
+  document.getElementById("error-replay").addEventListener("click", async () => {
+    showError(false);
+    await new Promise((r) => setTimeout(r, 350));
+    showError(true);
+  });
+  errNext.addEventListener("click", () => {
+    if (!errNext.disabled) showError(true);
+  });
+
+  /* ---- Toggle ---- */
+  document.querySelectorAll("#tg-track [data-toggle]").forEach((row) => {
+    row.addEventListener("click", () => row.querySelector(".toggle").classList.toggle("on"));
+  });
+  const phoneTg = document.getElementById("tg-phone");
+  document.getElementById("toggle-replay").addEventListener("click", async () => {
+    phoneTg.classList.remove("on");
+    await new Promise((r) => setTimeout(r, 200));
+    phoneTg.classList.add("on");
+    await new Promise((r) => setTimeout(r, 900));
+    phoneTg.classList.remove("on");
+  });
+})();
+
+</script>
+</body>
+</html>

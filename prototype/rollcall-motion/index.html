@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RollCall — Motion and transition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{
+  --bg:#F2F4F5; --card:#FFFFFF; --text:#1A2B29; --muted:#5C676B; --line:#E3E7E9;
+  --teal:#0E7C6B; --teal-dark:#0B5E52; --tint:#E3F2EF; --tint-2:#CDE8E2; --mint:#7FD8C6;
+  --red:#C2412D; --font:"Manrope", system-ui, sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#E4E8EA;color:var(--text)}
+body{font-family:var(--font);font-size:17px;line-height:1.45;-webkit-font-smoothing:antialiased}
+svg{display:block}
+.stage{padding:56px 64px 64px;width:1560px;background:#E4E8EA}
+.stage-head{margin-bottom:32px;display:flex;align-items:flex-end;justify-content:space-between;gap:48px;padding-bottom:18px;border-bottom:1px solid #D3D9DC}
+.brand{display:flex;align-items:center;gap:12px}
+.brand img{width:34px;height:34px}
+.stage-kicker{font-size:13px;font-weight:600;color:var(--muted)}
+.stage-title{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.stage-note{font-size:15px;font-weight:500;color:var(--muted);max-width:420px;text-align:right;line-height:1.45}
+
+.band{display:grid;gap:14px}
+.band + .band{margin-top:36px}
+.band-label{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.durations,.easings,.principles{display:grid;gap:12px}
+.durations{grid-template-columns:repeat(3,1fr)}
+.easings{grid-template-columns:repeat(3,1fr)}
+.principles{grid-template-columns:repeat(4,1fr)}
+
+.card{background:var(--card);border-radius:16px;padding:18px 20px 20px;border:1px solid #E3E7E9}
+.card .k{font-size:13px;font-weight:700;color:var(--muted)}
+.card .v{margin-top:2px;font-size:28px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--teal-dark)}
+.card .s{margin-top:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.timebar{margin-top:14px;height:6px;background:var(--tint);border-radius:99px;overflow:hidden}
+.timebar i{display:block;height:100%;background:var(--teal);border-radius:99px}
+
+.ease{display:flex;align-items:center;gap:16px}
+.ease svg{width:88px;height:88px;flex:none;background:var(--bg);border-radius:12px}
+.ease .v{font-size:16px;font-weight:800;letter-spacing:-.02em;color:var(--text);margin-top:2px}
+.ease code{display:block;margin-top:6px;font-size:12px;font-weight:600;color:var(--muted);font-family:ui-monospace,Menlo,monospace}
+
+.principles .card{padding:16px 18px}
+.principles h3{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.principles p{margin-top:6px;font-size:14px;font-weight:500;color:var(--muted);line-height:1.4}
+
+.body{display:grid;grid-template-columns:1fr 390px;gap:36px;align-items:start;margin-top:36px}
+table{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border-radius:16px;overflow:hidden;border:1px solid #E3E7E9;font-size:13.5px}
+th{text-align:left;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 14px 10px;border-bottom:1px solid var(--line);background:#F7F8F9}
+td{padding:10px 14px;border-bottom:1px solid var(--line);font-weight:500;color:var(--text);vertical-align:top}
+tr:last-child td{border-bottom:0}
+td.p{font-weight:800;white-space:nowrap;color:var(--teal-dark)}
+td.t{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--text)}
+td.r{color:var(--muted)}
+caption{text-align:left;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:0 0 12px;caption-side:top}
+
+.phone-wrap figcaption{margin-top:16px;font-size:15px;color:var(--muted);font-weight:500;max-width:390px}
+.phone-wrap figcaption b{color:var(--teal);font-weight:800;margin-right:8px}
+.phone{width:390px;height:844px;background:var(--bg);position:relative;overflow:hidden;display:flex;flex-direction:column;border-radius:20px}
+.phone > *{flex-shrink:0}
+.status{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:15px;font-weight:700}
+.status .sys{display:flex;gap:6px;align-items:center}
+.bars{display:flex;gap:2px;align-items:flex-end;height:11px}
+.bars i{width:3px;background:var(--text);border-radius:1px}
+.bars i:nth-child(1){height:4px}.bars i:nth-child(2){height:6px}.bars i:nth-child(3){height:9px}.bars i:nth-child(4){height:11px}
+.batt{width:24px;height:12px;border:1.5px solid var(--text);border-radius:4px;padding:1.5px}
+.batt i{display:block;height:100%;width:72%;background:var(--text);border-radius:2px}
+.appbar{display:flex;align-items:center;gap:12px;padding:6px 20px 14px}
+.appbar .titles{flex:1}
+.appbar h1{font-size:19px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.appbar p{font-size:14px;color:var(--muted);font-weight:500}
+.chipbtn{width:48px;height:48px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;color:var(--text);flex:none}
+.chipbtn svg{width:22px;height:22px}
+.summary{background:var(--teal);color:#fff;border-radius:16px;margin:0 20px;padding:16px 18px 18px}
+.summary-top{display:flex;justify-content:space-between;align-items:center;font-size:14px;font-weight:600}
+.pill-live{display:inline-flex;align-items:center;gap:7px;background:var(--teal-dark);padding:4px 10px 4px 9px;border-radius:999px;font-size:13px;font-weight:700}
+.pill-live::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--mint)}
+.summary-nums{display:flex;align-items:flex-end;justify-content:space-between;margin-top:6px}
+.big{font-size:46px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.big small{font-size:18px;font-weight:600;letter-spacing:0;margin-left:6px;opacity:.95}
+.left{text-align:right;font-size:14px;font-weight:600;line-height:1.3}
+.left b{display:block;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.pbar{height:6px;background:var(--teal-dark);border-radius:99px;margin-top:14px;overflow:hidden}
+.pbar i{display:block;height:100%;width:69%;background:#fff;border-radius:99px}
+.card-ph{background:var(--card);border-radius:16px;margin:12px 20px 0;padding:12px}
+.finder{height:128px;border-radius:12px;background:#16201F;position:relative;overflow:hidden}
+.finder .tag{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.14);color:#fff;font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px}
+.win{position:absolute;left:50%;top:54%;width:84px;height:84px;margin:-42px 0 0 -42px}
+.br{position:absolute;width:18px;height:18px;border:0 solid var(--mint)}
+.br.tl{left:0;top:0;border-top-width:3px;border-left-width:3px;border-top-left-radius:8px}
+.br.tr{right:0;top:0;border-top-width:3px;border-right-width:3px;border-top-right-radius:8px}
+.br.bl{left:0;bottom:0;border-bottom-width:3px;border-left-width:3px;border-bottom-left-radius:8px}
+.br.brr{right:0;bottom:0;border-bottom-width:3px;border-right-width:3px;border-bottom-right-radius:8px}
+.scrim{position:absolute;inset:0;background:rgba(27,37,40,.45);z-index:4}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--teal);color:#fff;border-radius:24px 24px 20px 20px;padding:10px 20px 22px;z-index:5}
+.handle{width:40px;height:4px;border-radius:4px;background:rgba(255,255,255,.4);margin:0 auto 20px}
+.sheet-top{display:flex;align-items:center;gap:12px}
+.check{width:48px;height:48px;border-radius:50%;background:#fff;color:var(--teal);display:grid;place-items:center;flex:none}
+.check svg{width:26px;height:26px}
+.sheet-top b{display:block;font-size:20px;font-weight:800;line-height:1.2}
+.sheet-top span{font-size:15px;font-weight:600;opacity:.95;font-variant-numeric:tabular-nums}
+.member{display:flex;align-items:center;gap:16px;background:var(--teal-dark);border-radius:16px;padding:16px;margin-top:20px}
+.avatar{width:64px;height:64px;border-radius:50%;background:var(--tint);color:var(--teal-dark);display:grid;place-items:center;font-size:22px;font-weight:800;flex:none}
+.member h3{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.idpill{display:inline-flex;margin-top:6px;font-size:14px;font-weight:700;background:rgba(255,255,255,.14);padding:3px 10px;border-radius:999px;font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:12px;margin-top:16px}
+.btn{height:56px;border-radius:12px;font-weight:700;font-size:17px;display:flex;align-items:center;justify-content:center;flex:1}
+.undo{border:1.5px solid rgba(255,255,255,.7);color:#fff}
+.done{background:#fff;color:var(--teal-dark)}
+.next{display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:600}
+.next .track{flex:1;height:4px;border-radius:4px;background:var(--teal-dark);overflow:hidden}
+.next .track i{display:block;height:100%;width:48%;background:#fff}
+</style>
+</head>
+<body>
+<main class="stage" id="overview">
+  <header class="stage-head">
+    <div class="brand">
+      <img src="assets/rollcall-mark-32-teal.svg" width="34" height="34" alt="">
+      <div>
+        <p class="stage-kicker">RollCall · Motion spec</p>
+        <h1 class="stage-title">Calm, quick and purposeful</h1>
+      </div>
+    </div>
+    <p class="stage-note">Shorelines-style tokens for the door volunteer. No bounce, no spin, no decoration. Full write-up in MOTION-SPEC.md. Live timings in demo.html.</p>
+  </header>
+
+  <section class="band">
+    <p class="band-label">Durations</p>
+    <div class="durations">
+      <div class="card"><p class="k">Fast</p><p class="v">120ms</p><p class="s">Toggles, dirty dots, button press</p><div class="timebar"><i style="width:37.5%"></i></div></div>
+      <div class="card"><p class="k">Base</p><p class="v">200ms</p><p class="s">Steps, tabs, dialogs, errors, toasts</p><div class="timebar"><i style="width:62.5%"></i></div></div>
+      <div class="card"><p class="k">Slow</p><p class="v">320ms</p><p class="s">Sheets, list enter, the check-in rise</p><div class="timebar"><i style="width:100%"></i></div></div>
+    </div>
+  </section>
+
+  <section class="band">
+    <p class="band-label">Easings and exits</p>
+    <div class="easings">
+      <div class="card ease">
+        <svg viewBox="0 0 88 88" aria-hidden="true">
+          <line x1="14" y1="74" x2="74" y2="74" stroke="#D5DCDF" stroke-width="1"/>
+          <line x1="14" y1="74" x2="14" y2="14" stroke="#D5DCDF" stroke-width="1"/>
+          <path d="M14 74 C 26 74, 14 14, 74 14" fill="none" stroke="#0E7C6B" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div><p class="k">Standard</p><p class="v">Everyday travel</p><code>cubic-bezier(.2, 0, 0, 1)</code></div>
+      </div>
+      <div class="card ease">
+        <svg viewBox="0 0 88 88" aria-hidden="true">
+          <line x1="14" y1="74" x2="74" y2="74" stroke="#D5DCDF" stroke-width="1"/>
+          <line x1="14" y1="74" x2="14" y2="14" stroke="#D5DCDF" stroke-width="1"/>
+          <path d="M14 74 C 14 74, 14 14, 74 14" fill="none" stroke="#0E7C6B" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div><p class="k">Enter</p><p class="v">Soft settle, no bounce</p><code>cubic-bezier(0, 0, 0, 1)</code></div>
+      </div>
+      <div class="card ease">
+        <svg viewBox="0 0 88 88" aria-hidden="true">
+          <line x1="14" y1="74" x2="74" y2="74" stroke="#D5DCDF" stroke-width="1"/>
+          <line x1="14" y1="74" x2="14" y2="14" stroke="#D5DCDF" stroke-width="1"/>
+          <path d="M14 74 C 32 74, 74 14, 74 14" fill="none" stroke="#0E7C6B" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <div><p class="k">Exit</p><p class="v">70% of the enter time</p><code>cubic-bezier(.3, 0, 1, 1)</code><p class="s" style="margin-top:6px">84ms · 140ms · 224ms</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band">
+    <p class="band-label">Principles</p>
+    <div class="principles">
+      <div class="card"><h3>Transform and opacity</h3><p>Nothing else moves, except the check-in tick (stroke-dashoffset) and everyday colour on toggles and buttons.</p></div>
+      <div class="card"><h3>Exits are faster</h3><p>Leave at 70% of the time it took to arrive, so the door can get back to scanning.</p></div>
+      <div class="card"><h3>No decoration</h3><p>No bounce, no spinning loaders, no gradient shimmer. Skeletons pulse opacity only.</p></div>
+      <div class="card"><h3>Reduced motion</h3><p>Distances and scales go to zero. What remains is a 120ms fade, or an instant change.</p></div>
+    </div>
+  </section>
+
+  <div class="body">
+    <table>
+      <caption>Patterns</caption>
+      <thead>
+        <tr><th>Pattern</th><th>Timing</th><th>Reduced motion</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="p">Wizard step</td><td class="t">Sequential: out 8px + fade 120ms, then in 12px + fade 200ms. Text never overlaps.</td><td class="r">120ms opacity out-then-in, or instant</td></tr>
+        <tr><td class="p">Edit tabs</td><td class="t">Underline slides, content fades · 200ms</td><td class="r">Underline jumps, 120ms fade</td></tr>
+        <tr><td class="p">Dirty dot</td><td class="t">Scale 0.6→1 + fade · 120 / 84ms</td><td class="r">Instant</td></tr>
+        <tr><td class="p">Toggle</td><td class="t">Thumb 20px · 120ms</td><td class="r">Instant</td></tr>
+        <tr><td class="p">Inline error</td><td class="t">4px drop + fade · 200 / 140ms</td><td class="r">Fade only, no drop, no shake</td></tr>
+        <tr><td class="p">Button press</td><td class="t">Scale 0.98 · 120ms</td><td class="r">No scale</td></tr>
+        <tr><td class="p">Disabled → enabled</td><td class="t">Colour · 200 / 140ms</td><td class="r">Instant or 120ms colour</td></tr>
+        <tr><td class="p">Centered dialog</td><td class="t">Overlay fade, lift 8px · 200 / 140ms</td><td class="r">Fade only, 120ms</td></tr>
+        <tr><td class="p">Bottom sheet</td><td class="t">Slide up · 320 / 224ms</td><td class="r">Fade only, 120ms</td></tr>
+        <tr><td class="p">Discard / delete</td><td class="t">Same as dialog · 200 / 140ms</td><td class="r">Fade only. No shake.</td></tr>
+        <tr><td class="p">Check-in success</td><td class="t">Rise 320ms, tick 320ms, hold 2s, exit 224ms</td><td class="r">Fade in, tick already drawn, 2s hold remains</td></tr>
+        <tr><td class="p">Already checked in</td><td class="t">Same sheet motion, amber or red, no shake</td><td class="r">Fade only</td></tr>
+        <tr><td class="p">Toast</td><td class="t">8px from the top · 200 / 140ms, hold 2.5s</td><td class="r">Fade only</td></tr>
+        <tr><td class="p">List enter / remove</td><td class="t">Enter 320ms, leave 140ms</td><td class="r">Fade or instant unmount</td></tr>
+        <tr><td class="p">Skeleton</td><td class="t">Opacity 1↔0.55 · 1.6s pulse</td><td class="r">Static at 0.8. No sweep.</td></tr>
+        <tr><td class="p">Route change</td><td class="t">200ms fade, or none</td><td class="r">Instant</td></tr>
+        <tr><td class="p">Camera preview</td><td class="t">Fade + scale 0.98 · 200ms</td><td class="r">Fade only, 120ms</td></tr>
+      </tbody>
+    </table>
+
+    <figure class="phone-wrap">
+      <div class="phone">
+        <div class="status"><span>10:42</span><span class="sys"><span class="bars"><i></i><i></i><i></i><i></i></span><span class="batt"><i></i></span></span></div>
+        <div class="appbar">
+          <div class="chipbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6 9 12l6 6"/></svg></div>
+          <div class="titles"><h1>Saturday lunch</h1><p>FNC UK · door</p></div>
+        </div>
+        <div class="summary">
+          <div class="summary-top"><span>Checked in</span><span class="pill-live">Live</span></div>
+          <div class="summary-nums"><div class="big">24<small> / 35</small></div><div class="left">Still to come<b>11</b></div></div>
+          <div class="pbar"><i></i></div>
+        </div>
+        <div class="card-ph">
+          <div class="finder">
+            <span class="tag">Ready to scan</span>
+            <div class="win"><i class="br tl"></i><i class="br tr"></i><i class="br bl"></i><i class="br brr"></i></div>
+          </div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div class="handle"></div>
+          <div class="sheet-top">
+            <div class="check">
+              <svg viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 13.5 11 18 19.5 8.5"/></svg>
+            </div>
+            <div><b>Checked in</b><span>10:42 · Saturday lunch</span></div>
+          </div>
+          <div class="member">
+            <div class="avatar">JN</div>
+            <div><h3>James Nwosu</h3><span class="idpill">FNC-0164</span></div>
+          </div>
+          <div class="actions">
+            <div class="btn undo">Undo</div>
+            <div class="btn done">Done</div>
+          </div>
+          <div class="next"><span>Closes automatically</span><span class="track"><i></i></span></div>
+        </div>
+      </div>
+      <figcaption><b>Hero</b> Check-in success, frozen mid-hold. The sheet has settled, the tick is drawn, Undo is still reachable.</figcaption>
+    </figure>
+  </div>
+</main>
+</body>
+</html>

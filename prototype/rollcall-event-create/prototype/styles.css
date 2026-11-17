@@ -3,6 +3,19 @@
   --teal:#0E7C6B; --teal-dark:#0B5E52; --tint:#E3F2EF; --tint-2:#CDE8E2; --mint:#7FD8C6;
   --red:#C2412D; --red-tint:#FCEBE7;
   --font:"Manrope", system-ui, sans-serif; --m:20px;
+  --motion-duration-fast: 120ms;
+  --motion-duration-base: 200ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-enter: cubic-bezier(0, 0, 0, 1);
+  --motion-ease-exit: cubic-bezier(0.3, 0, 1, 1);
+  --motion-translate-step-exit: 8px;
+  --motion-translate-step-enter: 12px;
+}
+@media (prefers-reduced-motion: reduce){
+  :root{
+    --motion-translate-step-exit: 0px;
+    --motion-translate-step-enter: 0px;
+  }
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:#E4E8EA;color:var(--text)}
@@ -167,5 +180,10 @@ svg{display:block}
 .checkin .scan .ic svg{width:32px;height:32px}
 .checkin .scan b{font-size:18px;font-weight:800}
 .checkin .scan p{font-size:15px;font-weight:500;color:var(--muted);max-width:240px}
+
+/* Sequential wizard step swap: outgoing hides before incoming starts, so text never overlaps. */
+.step-viewport{flex:1 1 auto!important;min-height:0;overflow:hidden;position:relative;display:flex;flex-direction:column}
+.step-viewport .content{flex:1 1 auto;min-height:0;overflow:auto}
+.phone > .step-viewport{flex-shrink:1}
 
 .still *,.still *::before,.still *::after{animation-play-state:paused!important}

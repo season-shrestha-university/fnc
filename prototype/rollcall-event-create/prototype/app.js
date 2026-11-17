@@ -230,23 +230,27 @@ function screen(s){
   const top = `${st}${topbar('Create event')}${steps(s.step==='fields'?2:1)}`;
   if (s.step==='fields'){
     return `${top}
-      <section class="content fields-step">
-        <div class="summary">
-          <span class="who">${esc(s.name)} <small>${fmtDate(s.date)}</small></span>
-          <button class="edit" data-act="back">Edit</button>
-        </div>
-        <h2 class="prompt">What should we record at the door?</h2>
-        ${fieldRows(s)}
-      </section>
+      <div class="step-viewport">
+        <section class="content fields-step">
+          <div class="summary">
+            <span class="who">${esc(s.name)} <small>${fmtDate(s.date)}</small></span>
+            <button class="edit" data-act="back">Edit</button>
+          </div>
+          <h2 class="prompt">What should we record at the door?</h2>
+          ${fieldRows(s)}
+        </section>
+      </div>
       ${createFooter(s)}${discardSheet(s)}`;
   }
   return `${top}
-    <section class="content">
-      <div class="fields">
-        ${nameField(s, {focus:s.focus==='name'})}
-        ${dateField(s)}
-      </div>
-    </section>
+    <div class="step-viewport">
+      <section class="content">
+        <div class="fields">
+          ${nameField(s, {focus:s.focus==='name'})}
+          ${dateField(s)}
+        </div>
+      </section>
+    </div>
     ${createFooter(s)}${discardSheet(s)}`;
 }
 
@@ -272,9 +276,70 @@ function createIsDirty(s){
   return !!(s.name||'').trim() || s.date !== TODAY || Object.values(s.fields||{}).some(Boolean);
 }
 
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 function prototype(el){
   let s = blankCreate();
   const draw = () => { el.innerHTML = screen(s); };
+
+  async function swapCreateStep(step, direction){
+    if (s._swapping) return;
+    const viewport = el.querySelector('.step-viewport');
+    const pane = viewport && viewport.querySelector('.content');
+    if (!viewport || !pane || document.body.classList.contains('still')){
+      s.step = step;
+      if (step === 'basics') s.focus = '';
+      draw();
+      return;
+    }
+    s._swapping = true;
+    const reduce = reduceMotion();
+    const fromH = viewport.getBoundingClientRect().height;
+    viewport.style.height = fromH + 'px';
+    viewport.style.overflow = 'hidden';
+    const exitX = reduce ? 0 : (direction === 'forward' ? -8 : 8);
+    const enterX = reduce ? 0 : (direction === 'forward' ? 12 : -12);
+    pane.style.transition = reduce
+      ? 'opacity 120ms cubic-bezier(.3, 0, 1, 1)'
+      : 'opacity 120ms cubic-bezier(.3, 0, 1, 1), transform 120ms cubic-bezier(.3, 0, 1, 1)';
+    pane.style.opacity = '0';
+    pane.style.transform = `translateX(${exitX}px)`;
+    await wait(120);
+    pane.style.visibility = 'hidden';
+    s.step = step;
+    if (step === 'basics') s.focus = '';
+    draw();
+    const vp = el.querySelector('.step-viewport');
+    const next = vp && vp.querySelector('.content');
+    if (!vp || !next){ s._swapping = false; return; }
+    vp.style.height = fromH + 'px';
+    vp.style.overflow = 'hidden';
+    next.style.opacity = '0';
+    next.style.visibility = 'visible';
+    next.style.transform = `translateX(${enterX}px)`;
+    next.style.transition = 'none';
+    const toH = next.scrollHeight;
+    void next.offsetWidth;
+    const enterMs = reduce ? 120 : 200;
+    next.style.transition = reduce
+      ? 'opacity 120ms cubic-bezier(0, 0, 0, 1)'
+      : 'opacity 200ms cubic-bezier(0, 0, 0, 1), transform 200ms cubic-bezier(0, 0, 0, 1)';
+    next.style.opacity = '1';
+    next.style.transform = 'translateX(0)';
+    if (!reduce && Math.round(toH) !== Math.round(fromH)){
+      vp.style.transition = 'height 200ms cubic-bezier(.2, 0, 0, 1)';
+      vp.style.height = toH + 'px';
+    }
+    await wait(enterMs);
+    next.style.transition = '';
+    next.style.opacity = '';
+    next.style.transform = '';
+    vp.style.height = '';
+    vp.style.overflow = '';
+    vp.style.transition = '';
+    s._swapping = false;
+  }
   const goList = (extra={}) => { s = {view:'list', clock:s.clock, created:s.created||[], ...extra}; draw(); };
   const requestClose = () => {
     if (s.mode==='edit' ? isDirty(s) : createIsDirty(s)) { s.discard = true; draw(); }
@@ -338,9 +403,9 @@ function prototype(el){
     }
     if (a==='next') {
       if (!(s.name||'').trim()) { s.errName = 'Give the event a name'; s.focus = 'name'; draw(); const n=el.querySelector('[data-k="name"]'); if(n) n.focus(); return; }
-      s.errName = ''; s.step = 'fields'; draw(); return;
+      s.errName = ''; swapCreateStep('fields', 'forward'); return;
     }
-    if (a==='back') { s.step = 'basics'; s.focus = ''; draw(); return; }
+    if (a==='back') { swapCreateStep('basics', 'back'); return; }
     if (a==='create') {
       s = {view:'done', clock:s.clock, name:s.name.trim(), date:s.date, fields:s.fields, created:[...(s.created||[]), {name:s.name.trim(), date:s.date}]};
       draw(); return;

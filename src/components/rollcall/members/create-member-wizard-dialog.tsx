@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import { createMember, type DirectoryMember } from "@/app/actions";
 import RollCallLogo from "@/components/brand/rollcall-logo";
@@ -23,6 +24,10 @@ import { ContactStep } from "@/components/rollcall/members/wizard-steps/contact-
 import { DetailsStep } from "@/components/rollcall/members/wizard-steps/details-step";
 import { DoneStep } from "@/components/rollcall/members/wizard-steps/done-step";
 import { PhotoStep } from "@/components/rollcall/members/wizard-steps/photo-step";
+import {
+  WizardStepViewport,
+  type WizardDirection,
+} from "@/components/rollcall/shared/wizard-step-viewport";
 import { Button } from "@/components/ui/button";
 
 type CreateMemberWizardDialogProps = {
@@ -36,8 +41,23 @@ type CreateMemberWizardDialogProps = {
 export function CreateMemberWizardDialog(
   props: CreateMemberWizardDialogProps,
 ) {
-  if (!props.open) return null;
-  return <CreateMemberWizardContent {...props} />;
+  const [prevOpen, setPrevOpen] = useState(props.open);
+  const [sessionKey, setSessionKey] = useState(0);
+
+  if (props.open !== prevOpen) {
+    setPrevOpen(props.open);
+    if (props.open) {
+      setSessionKey((key) => key + 1);
+    }
+  }
+
+  return (
+    <DialogPrimitive.Root open={props.open}>
+      <DialogPrimitive.Portal>
+        <CreateMemberWizardContent key={sessionKey} {...props} />
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
 }
 
 function CreateMemberWizardContent({
@@ -47,6 +67,7 @@ function CreateMemberWizardContent({
   onMessage,
 }: CreateMemberWizardDialogProps) {
   const [step, setStep] = useState<WizardStep>("photo");
+  const [direction, setDirection] = useState<WizardDirection>("forward");
   const [photoSubState, setPhotoSubState] = useState<PhotoSubState>("camera");
   const [values, setValues] = useState<WizardFormValues>(EMPTY_WIZARD_VALUES);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -94,6 +115,7 @@ function CreateMemberWizardContent({
     videoRef,
     facingMode,
     isStartingCamera,
+    isStreamReady,
     hasMultipleCameras,
     cameraError,
     startCamera,
@@ -196,12 +218,14 @@ function CreateMemberWizardContent({
     stopCamera();
     applyPhotoFile(null, false);
     setFocusField(null);
+    setDirection("forward");
     setStep("details");
   }
 
   function handleGoToPhoto() {
     setFocusField(null);
     setPhotoSubState(photoFile ? "captured" : "camera");
+    setDirection("back");
     setStep("photo");
   }
 
@@ -213,6 +237,7 @@ function CreateMemberWizardContent({
       return false;
     }
     setFocusField(null);
+    setDirection("forward");
     setStep("contact");
     return true;
   }
@@ -221,6 +246,7 @@ function CreateMemberWizardContent({
     const detailsErrors = validateDetailsFields(values);
     if (Object.keys(detailsErrors).length > 0) {
       setErrors((current) => ({ ...current, ...detailsErrors }));
+      setDirection("back");
       setStep("details");
       setFocusField("name");
       return;
@@ -251,6 +277,7 @@ function CreateMemberWizardContent({
 
       onCreated(created);
       setCreatedMember(created);
+      setDirection("forward");
       setStep("done");
     } catch (error) {
       const message =
@@ -258,6 +285,7 @@ function CreateMemberWizardContent({
       const routed = routeServerErrorToStep(message);
       setErrors(routed.errors);
       if (routed.step !== step) {
+        setDirection("back");
         setStep(routed.step);
         if (routed.errors.name) setFocusField("name");
         else if (routed.errors.memberId) setFocusField("memberId");
@@ -278,19 +306,16 @@ function CreateMemberWizardContent({
     : "Member created";
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-foreground/50 sm:items-center sm:p-4"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
-          requestClose();
-        }
-      }}
-    >
-      <div
+    <>
+      <DialogPrimitive.Backdrop
+        onClick={requestClose}
+        className="ui-backdrop fixed inset-0 z-50 bg-foreground/50"
+      />
+      <DialogPrimitive.Popup
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-member-wizard-title"
-        className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
+        className="ui-dialog ui-dialog-responsive-sheet fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
       >
         <div aria-live="polite" className="sr-only">
           {liveAnnouncement}
@@ -337,81 +362,101 @@ function CreateMemberWizardContent({
           </div>
         )}
 
-        {step === "photo" && (
-          <PhotoStep
-            subState={photoSubState}
-            photoPreviewUrl={photoPreviewUrl}
-            facingMode={facingMode}
-            isStartingCamera={isStartingCamera}
-            hasMultipleCameras={hasMultipleCameras}
-            cameraError={cameraError}
-            videoRef={videoRef}
-            headingRef={headingRef}
-            onStartCamera={startCamera}
-            onStopCamera={stopCamera}
-            onSwitchCamera={switchCamera}
-            onCapture={capturePhoto}
-            onFileSelected={(file) => applyPhotoFile(file, false)}
-            onInvalidFile={(message) => onMessage(message, "error")}
-            onRetake={handleRetake}
-            onSkip={handleSkipPhoto}
-            onNext={() => {
-              setFocusField(null);
-              setStep("details");
-            }}
-          />
-        )}
+        <WizardStepViewport
+          stepKey={step}
+          direction={direction}
+          onStepVisible={() => headingRef.current?.focus()}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          {(renderedStep) => (
+            <>
+              {renderedStep === "photo" && (
+                <PhotoStep
+                  subState={photoSubState}
+                  photoPreviewUrl={photoPreviewUrl}
+                  facingMode={facingMode}
+                  isStartingCamera={isStartingCamera}
+                  isStreamReady={isStreamReady}
+                  hasMultipleCameras={hasMultipleCameras}
+                  cameraError={cameraError}
+                  videoRef={videoRef}
+                  headingRef={headingRef}
+                  onStartCamera={startCamera}
+                  onStopCamera={stopCamera}
+                  onSwitchCamera={switchCamera}
+                  onCapture={capturePhoto}
+                  onFileSelected={(file) => applyPhotoFile(file, false)}
+                  onInvalidFile={(message) => onMessage(message, "error")}
+                  onRetake={handleRetake}
+                  onSkip={handleSkipPhoto}
+                  onNext={() => {
+                    setFocusField(null);
+                    setDirection("forward");
+                    setStep("details");
+                  }}
+                />
+              )}
 
-        {step === "details" && (
-          <DetailsStep
-            values={values}
-            errors={errors}
-            photoPreviewUrl={photoPreviewUrl}
-            headingRef={headingRef}
-            focusField={focusField}
-            onChange={handleFieldChange}
-            onGoPhoto={handleGoToPhoto}
-            onBack={handleGoToPhoto}
-            onNext={handleDetailsNext}
-          />
-        )}
+              {renderedStep === "details" && (
+                <DetailsStep
+                  values={values}
+                  errors={errors}
+                  photoPreviewUrl={photoPreviewUrl}
+                  headingRef={headingRef}
+                  focusField={focusField}
+                  onChange={handleFieldChange}
+                  onGoPhoto={handleGoToPhoto}
+                  onBack={handleGoToPhoto}
+                  onNext={handleDetailsNext}
+                />
+              )}
 
-        {step === "contact" && (
-          <ContactStep
-            values={values}
-            errors={errors}
-            photoPreviewUrl={photoPreviewUrl}
-            isSubmitting={isSubmitting}
-            headingRef={headingRef}
-            onChange={handleFieldChange}
-            onGoPhoto={handleGoToPhoto}
-            onBack={() => {
-              setFocusField(null);
-              setStep("details");
-            }}
-            onSubmit={handleSubmit}
-          />
-        )}
+              {renderedStep === "contact" && (
+                <ContactStep
+                  values={values}
+                  errors={errors}
+                  photoPreviewUrl={photoPreviewUrl}
+                  isSubmitting={isSubmitting}
+                  headingRef={headingRef}
+                  onChange={handleFieldChange}
+                  onGoPhoto={handleGoToPhoto}
+                  onBack={() => {
+                    setFocusField(null);
+                    setDirection("back");
+                    setStep("details");
+                  }}
+                  onSubmit={handleSubmit}
+                />
+              )}
 
-        {step === "done" && createdMember && (
-          <DoneStep
-            member={createdMember}
-            photoPreviewUrl={photoPreviewUrl}
-            headingRef={headingRef}
-            onMessage={onMessage}
-            onAddAnother={handleAddAnother}
-            onDone={performClose}
-          />
-        )}
+              {renderedStep === "done" && createdMember && (
+                <DoneStep
+                  member={createdMember}
+                  photoPreviewUrl={photoPreviewUrl}
+                  headingRef={headingRef}
+                  onMessage={onMessage}
+                  onAddAnother={handleAddAnother}
+                  onDone={performClose}
+                />
+              )}
+            </>
+          )}
+        </WizardStepViewport>
 
-        {showDiscardConfirm && (
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="discard-confirm-title"
-            className="absolute inset-0 z-20 flex items-center justify-center bg-foreground/50 p-5"
-          >
-            <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-lg">
+        <DialogPrimitive.Root
+          open={showDiscardConfirm}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setShowDiscardConfirm(false);
+          }}
+        >
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Backdrop className="ui-backdrop fixed inset-0 z-[60] bg-foreground/50" />
+            <DialogPrimitive.Popup
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="discard-confirm-title"
+              className="ui-dialog fixed top-1/2 left-1/2 z-[60] w-full max-w-[336px] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 shadow-lg outline-none"
+            >
               <h2
                 id="discard-confirm-title"
                 className="font-heading text-xl font-extrabold"
@@ -440,10 +485,10 @@ function CreateMemberWizardContent({
                   Discard
                 </Button>
               </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </DialogPrimitive.Popup>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      </DialogPrimitive.Popup>
+    </>
   );
 }

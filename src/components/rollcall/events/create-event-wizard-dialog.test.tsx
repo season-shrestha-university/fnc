@@ -37,7 +37,7 @@ describe("CreateEventWizardDialog", () => {
     vi.clearAllMocks();
   });
 
-  it("defaults date to today and validates empty event name on Next", () => {
+  it("defaults date to today and validates empty event name on Next", async () => {
     renderCreateWizard();
 
     expect(screen.getByText("Create event")).toBeInTheDocument();
@@ -53,11 +53,15 @@ describe("CreateEventWizardDialog", () => {
     expect(nameInput).toHaveFocus();
 
     fireEvent.change(nameInput, { target: { value: "Community Lunch" } });
-    expect(screen.queryByText("Give the event a name")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByText("Give the event a name"),
+      ).not.toBeInTheDocument();
+    });
 
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
     expect(
-      screen.getByText("What should we record at the door?"),
+      await screen.findByText("What should we record at the door?"),
     ).toBeInTheDocument();
   });
 
@@ -83,19 +87,19 @@ describe("CreateEventWizardDialog", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
 
-    expect(screen.getAllByText("Always recorded")).toHaveLength(2);
+    expect(await screen.findAllByText("Always recorded")).toHaveLength(2);
     const emailToggle = screen.getByRole("button", { name: "Email" });
     expect(emailToggle).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(emailToggle);
     expect(emailToggle).toHaveAttribute("aria-pressed", "true");
 
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
-    expect(screen.getByLabelText(/Event name/i)).toHaveValue(
+    expect(await screen.findByLabelText(/Event name/i)).toHaveValue(
       "  Dashain Festival  ",
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
-    expect(screen.getByRole("button", { name: "Email" })).toHaveAttribute(
+    expect(await screen.findByRole("button", { name: "Email" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
@@ -129,7 +133,7 @@ describe("CreateEventWizardDialog", () => {
       target: { value: "Yoga" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Create event" }));
 
     expect(
       await screen.findByRole("button", { name: "Start check-in" }),
@@ -155,7 +159,7 @@ describe("CreateEventWizardDialog", () => {
       target: { value: "Town Hall" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Phone" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Phone" }));
     fireEvent.click(screen.getByRole("button", { name: "Create event" }));
 
     expect(screen.getByRole("button", { name: /Creating/i })).toBeDisabled();

@@ -5,10 +5,14 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
+
+import { DirtyDot } from "@/components/rollcall/shared/dirty-dot";
 
 import {
   EVENT_EDIT_SECTIONS,
@@ -52,15 +56,27 @@ export type EditEventDialogProps = {
 };
 
 export function EditEventDialog(props: EditEventDialogProps) {
-  if (!props.open || !props.event) return null;
+  const [lastEvent, setLastEvent] = useState<EditableEvent | null>(props.event);
+  if (props.event && props.event !== lastEvent) {
+    setLastEvent(props.event);
+  }
+  const activeEvent = props.event ?? lastEvent;
+  const isOpen = props.open && Boolean(props.event);
+
   return (
-    <EditEventContent
-      key={props.event.id}
-      event={props.event}
-      onClose={props.onClose}
-      onSave={props.onSave}
-      onDelete={props.onDelete}
-    />
+    <DialogPrimitive.Root open={isOpen}>
+      <DialogPrimitive.Portal>
+        {activeEvent ? (
+          <EditEventContent
+            key={activeEvent.id}
+            event={activeEvent}
+            onClose={props.onClose}
+            onSave={props.onSave}
+            onDelete={props.onDelete}
+          />
+        ) : null}
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 
@@ -246,20 +262,19 @@ function EditEventContent({
     }
   }
 
+  const activeTabIndex = EVENT_EDIT_SECTIONS.indexOf(step);
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-stretch justify-center bg-foreground/50 sm:items-center sm:p-4"
-      onMouseDown={(mouseEvent) => {
-        if (mouseEvent.target === mouseEvent.currentTarget) {
-          requestClose();
-        }
-      }}
-    >
-      <div
+    <>
+      <DialogPrimitive.Backdrop
+        onClick={requestClose}
+        className="ui-backdrop fixed inset-0 z-50 bg-foreground/50"
+      />
+      <DialogPrimitive.Popup
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-event-dialog-title"
-        className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
+        className="ui-dialog ui-dialog-responsive-sheet fixed inset-0 z-50 flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground outline-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:h-auto sm:max-h-[90dvh] sm:max-w-[600px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[20px] sm:bg-card sm:ring-1 sm:ring-border"
       >
         <div aria-live="polite" className="sr-only">
           {EVENT_STEP_META[step].label}
@@ -284,53 +299,52 @@ function EditEventContent({
           <span className="sm:hidden" aria-hidden="true" />
         </header>
 
-        <div
-          role="tablist"
-          aria-label="Event sections"
-          className="grid grid-cols-2 gap-1.5 px-5 pt-2 sm:px-6 sm:pt-3"
-        >
-          {EVENT_EDIT_SECTIONS.map((section, index) => {
-            const isActive = step === section;
-            const isSectionDirty = dirtyMap[section];
-            return (
-              <button
-                key={section}
-                ref={(element) => {
-                  tabRefs.current[section] = element;
-                }}
-                type="button"
-                role="tab"
-                id={`edit-event-tab-${section}`}
-                aria-selected={isActive}
-                onClick={() => setStep(section)}
-                onKeyDown={(keyboardEvent) =>
-                  handleTabKeyDown(keyboardEvent, index)
-                }
-                className="flex min-h-11 flex-col items-center gap-2 px-0.5 pb-1.5 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
-              >
-                <span
-                  aria-hidden="true"
-                  className={`block h-1 w-full rounded-full transition-colors ${
-                    isActive ? "bg-primary" : "bg-[#D5DCDF]"
-                  }`}
-                />
-                <span
-                  className={`inline-flex items-center gap-1.5 text-sm font-bold leading-none ${
-                    isActive ? "text-primary-strong" : "text-muted-foreground"
-                  }`}
+        <div className="px-5 pt-2 sm:px-6 sm:pt-3">
+          <div
+            aria-hidden="true"
+            className="relative h-1 w-full overflow-hidden rounded-full bg-[#D5DCDF]"
+          >
+            <span
+              className="tab-underline block h-full w-1/2 rounded-full bg-primary"
+              style={{ "--tab-index": activeTabIndex } as CSSProperties}
+            />
+          </div>
+          <div
+            role="tablist"
+            aria-label="Event sections"
+            className="grid grid-cols-2"
+          >
+            {EVENT_EDIT_SECTIONS.map((section, index) => {
+              const isActive = step === section;
+              const isSectionDirty = dirtyMap[section];
+              return (
+                <button
+                  key={section}
+                  ref={(element) => {
+                    tabRefs.current[section] = element;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`edit-event-tab-${section}`}
+                  aria-selected={isActive}
+                  onClick={() => setStep(section)}
+                  onKeyDown={(keyboardEvent) =>
+                    handleTabKeyDown(keyboardEvent, index)
+                  }
+                  className="flex min-h-11 items-center justify-center px-1 py-1.5 focus-visible:rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
                 >
-                  {EVENT_STEP_META[section].label}
-                  {isSectionDirty && (
-                    <span
-                      title="Unsaved changes"
-                      aria-label="Unsaved changes"
-                      className="size-[7px] rounded-full bg-primary"
-                    />
-                  )}
-                </span>
-              </button>
-            );
-          })}
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-sm font-bold leading-none transition-colors duration-motion-fast ease-motion-standard ${
+                      isActive ? "text-primary-strong" : "text-muted-foreground"
+                    }`}
+                  >
+                    {EVENT_STEP_META[section].label}
+                    <DirtyDot dirty={isSectionDirty} />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         <form
@@ -338,33 +352,35 @@ function EditEventContent({
           noValidate
           className="flex min-h-0 flex-1 flex-col"
         >
-          {step === "basics" && (
-            <BasicsStep
-              mode="edit"
-              values={values}
-              errors={errors}
-              headingRef={headingRef}
-              focusNameTick={focusNameTick}
-              isSubmitting={isBusy}
-              onNameChange={handleNameChange}
-              onDateChange={handleDateChange}
-              onDeleteRequest={() => {
-                setDeleteError(undefined);
-                setShowDeleteConfirm(true);
-              }}
-            />
-          )}
+          <div key={step} className="tab-panel flex min-h-0 flex-1 flex-col">
+            {step === "basics" && (
+              <BasicsStep
+                mode="edit"
+                values={values}
+                errors={errors}
+                headingRef={headingRef}
+                focusNameTick={focusNameTick}
+                isSubmitting={isBusy}
+                onNameChange={handleNameChange}
+                onDateChange={handleDateChange}
+                onDeleteRequest={() => {
+                  setDeleteError(undefined);
+                  setShowDeleteConfirm(true);
+                }}
+              />
+            )}
 
-          {step === "fields" && (
-            <FieldsStep
-              mode="edit"
-              values={values}
-              errors={errors}
-              headingRef={headingRef}
-              isSubmitting={isBusy}
-              onToggleField={handleToggleField}
-            />
-          )}
+            {step === "fields" && (
+              <FieldsStep
+                mode="edit"
+                values={values}
+                errors={errors}
+                headingRef={headingRef}
+                isSubmitting={isBusy}
+                onToggleField={handleToggleField}
+              />
+            )}
+          </div>
 
           <footer className="sticky bottom-0 z-10 border-t border-border bg-card px-5 pt-3.5 pb-[max(1rem,env(safe-area-inset-bottom))] sm:static sm:px-6 sm:py-4">
             <Button
@@ -380,28 +396,26 @@ function EditEventContent({
           </footer>
         </form>
 
-        {showDiscardConfirm && (
-          <DiscardChangesSheet
-            mode="edit"
-            eventName={snapshot.name}
-            onKeepEditing={() => setShowDiscardConfirm(false)}
-            onDiscard={onClose}
-          />
-        )}
+        <DiscardChangesSheet
+          open={showDiscardConfirm}
+          mode="edit"
+          eventName={snapshot.name}
+          onKeepEditing={() => setShowDiscardConfirm(false)}
+          onDiscard={onClose}
+        />
 
-        {showDeleteConfirm && (
-          <DeleteEventSheet
-            eventName={snapshot.name}
-            isDeleting={isDeleting}
-            error={deleteError}
-            onCancel={() => {
-              setShowDeleteConfirm(false);
-              setDeleteError(undefined);
-            }}
-            onConfirm={() => void handleConfirmDelete()}
-          />
-        )}
-      </div>
-    </div>
+        <DeleteEventSheet
+          open={showDeleteConfirm}
+          eventName={snapshot.name}
+          isDeleting={isDeleting}
+          error={deleteError}
+          onCancel={() => {
+            setShowDeleteConfirm(false);
+            setDeleteError(undefined);
+          }}
+          onConfirm={() => void handleConfirmDelete()}
+        />
+      </DialogPrimitive.Popup>
+    </>
   );
 }

@@ -36,7 +36,9 @@ describe("EventsView", () => {
       target: { value: "Spring Fair" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Next/i }));
-    fireEvent.click(screen.getByRole("button", { name: "Create event" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Create event" }),
+    );
 
     await waitFor(() => {
       expect(saveEvent).toHaveBeenCalledWith(

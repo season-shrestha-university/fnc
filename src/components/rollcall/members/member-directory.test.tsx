@@ -131,8 +131,8 @@ describe("MemberDirectory", () => {
 
     await waitFor(() => {
       expect(mockDeleteMember).toHaveBeenCalledWith("uuid-2");
+      expect(screen.queryByText("Grace Hopper")).not.toBeInTheDocument();
     });
-    expect(screen.queryByText("Grace Hopper")).not.toBeInTheDocument();
   });
 
   describe("camera photo capture", () => {

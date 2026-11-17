@@ -16,7 +16,6 @@ import {
   Clock,
   CloudOff,
   Keyboard,
-  Loader2,
   Pencil,
   Plus,
   QrCode,
@@ -54,7 +53,10 @@ import {
 import { useQrScanner } from "@/components/rollcall/check-in/use-qr-scanner";
 import { CreateEventWizardDialog } from "@/components/rollcall/events/create-event-wizard-dialog";
 import { EditEventDialog } from "@/components/rollcall/events/edit-event-dialog";
-import { useToast } from "@/components/rollcall/layout/toast-provider";
+import {
+  useDoorSheet,
+  useToast,
+} from "@/components/rollcall/layout/toast-provider";
 import LocalDate from "@/components/rollcall/shared/local-date";
 import {
   defaultTrackedFields,
@@ -117,6 +119,7 @@ export default function CheckInView({
 }) {
   const router = useRouter();
   const showToast = useToast();
+  const { showDoorSheet } = useDoorSheet();
   const [, startTransition] = useTransition();
   const [members, setMembers] = useState<Member[]>(() =>
     checkIns.map((checkIn) => ({ ...toMember(checkIn), syncStatus: "synced" })),
@@ -314,7 +317,11 @@ export default function CheckInView({
       const rosterMember = findRosterMember(activeRoster, normalizedId);
       if (!rosterMember) {
         playBeep(440);
-        showToast(`Member ${normalizedId} was not found`, "error");
+        showDoorSheet({
+          variant: "error",
+          title: "Member not found",
+          subtitle: `Member ${normalizedId} was not found`,
+        });
         return;
       }
 
@@ -326,7 +333,18 @@ export default function CheckInView({
         );
       if (alreadyCheckedIn) {
         playBeep(440);
-        showToast(`${rosterMember.name} is already checked in`, "error");
+        showDoorSheet({
+          variant: "duplicate",
+          title: "Already checked in",
+          subtitle: `${rosterMember.name} is already checked in`,
+          member: {
+            id: rosterMember.memberId,
+            name: rosterMember.name,
+            initials: getInitials(rosterMember.name),
+            color: getAvatarColor(rosterMember.name),
+            pictureUrl: rosterMember.pictureUrl || undefined,
+          },
+        });
         return;
       }
 
@@ -335,13 +353,18 @@ export default function CheckInView({
       setMembers((current) => [queued.memberSnapshot, ...current]);
       setPendingCount(loadOutbox(eventId).length);
       playBeep(880);
-      showToast("Checked in", "success", {
+      showDoorSheet({
+        variant: "success",
+        title: "Checked in",
         member: {
           id: queued.memberSnapshot.id,
           name: queued.memberSnapshot.name,
           initials: queued.memberSnapshot.initials,
           color: queued.memberSnapshot.color,
           pictureUrl: queued.memberSnapshot.pictureUrl,
+        },
+        onUndo: () => {
+          void deleteMember(queued.memberSnapshot.checkInId, { silent: true });
         },
       });
       void triggerOutboxSync();
@@ -369,7 +392,9 @@ export default function CheckInView({
       };
       setMembers((current) => [member, ...current]);
       playBeep(880);
-      showToast("Checked in", "success", {
+      showDoorSheet({
+        variant: "success",
+        title: "Checked in",
         member: {
           id: member.id,
           name: member.name,
@@ -377,37 +402,55 @@ export default function CheckInView({
           color: member.color,
           pictureUrl: member.pictureUrl,
         },
+        onUndo: () => {
+          void deleteMember(member.checkInId, { silent: true });
+        },
       });
     } catch (error) {
       playBeep(440);
-      showToast(
-        error instanceof Error ? error.message : "Unable to check in member",
-        "error",
-      );
+      const message =
+        error instanceof Error ? error.message : "Unable to check in member";
+      const isDuplicate = message.toLowerCase().includes("already checked in");
+      const isNotFound = message.toLowerCase().includes("not found");
+      showDoorSheet({
+        variant: isDuplicate ? "duplicate" : "error",
+        title: isDuplicate
+          ? "Already checked in"
+          : isNotFound
+            ? "Member not found"
+            : "Unable to check in member",
+        subtitle: message,
+      });
     } finally {
       checkInPendingRef.current = false;
       setIsCheckInPending(false);
     }
   }
 
-  const { isScanning, startScan, cancelScan, videoRef } = useQrScanner({
-    onScan: handleScan,
-    onMessage: showToast,
-  });
+  const { isScanning, isStreamReady, startScan, cancelScan, videoRef } =
+    useQrScanner({
+      onScan: handleScan,
+      onMessage: showToast,
+    });
 
   function handleManualEntry() {
     const memberId = window.prompt("Enter the member ID");
     if (memberId) void handleScan(memberId);
   }
 
-  async function deleteMember(checkInId: string) {
+  async function deleteMember(
+    checkInId: string,
+    options?: { silent?: boolean },
+  ) {
     if (checkInId.startsWith("local-")) {
       removeOutboxCheckIn(checkInId);
       setMembers((current) =>
         current.filter((member) => member.checkInId !== checkInId),
       );
       setPendingCount(loadOutbox(eventId).length);
-      showToast("Pending check-in removed", "success");
+      if (!options?.silent) {
+        showToast("Pending check-in removed", "success");
+      }
       return;
     }
 
@@ -417,7 +460,9 @@ export default function CheckInView({
       current.filter((member) => member.checkInId !== checkInId),
     );
     setPendingCount(loadOutbox(eventId).length);
-    showToast("Member removed from today’s check-ins", "success");
+    if (!options?.silent) {
+      showToast("Member removed from today’s check-ins", "success");
+    }
     void triggerOutboxSync();
   }
 
@@ -617,8 +662,8 @@ export default function CheckInView({
                 {!isOnline ? (
                   <CloudOff className="size-4 shrink-0" aria-hidden="true" />
                 ) : isSyncingOutbox ? (
-                  <Loader2
-                    className="size-4 shrink-0 animate-spin"
+                  <RefreshCw
+                    className="pending-pulse size-4 shrink-0"
                     aria-hidden="true"
                   />
                 ) : pendingCount > 0 ? (
@@ -676,8 +721,10 @@ export default function CheckInView({
               </div>
               <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-primary-strong">
                 <span
-                  className="block h-full rounded-full bg-white transition-[width] duration-500"
-                  style={{ width: `${attendancePercentage}%` }}
+                  className="block h-full origin-left rounded-full bg-white transition-transform duration-motion-slow ease-motion-standard"
+                  style={{
+                    transform: `scaleX(${Math.min(1, Math.max(0, attendancePercentage / 100))})`,
+                  }}
                 />
               </div>
               <p className="mt-2 text-sm font-semibold">
@@ -707,7 +754,8 @@ export default function CheckInView({
                   <video
                     ref={videoRef}
                     aria-label="Camera preview"
-                    className={`h-full w-full rounded-lg object-cover ${
+                    data-state={isStreamReady ? "ready" : "loading"}
+                    className={`camera-preview h-full w-full rounded-lg object-cover ${
                       isScanning && !isCheckInPending ? "" : "hidden"
                     }`}
                     muted
@@ -722,9 +770,9 @@ export default function CheckInView({
                   <QrCode className="absolute left-1/2 top-1/2 z-10 size-14 -translate-x-1/2 -translate-y-1/2 stroke-[1.25] text-mint" />
                 )}
                 {isCheckInPending && (
-                  <Loader2
+                  <QrCode
                     aria-hidden
-                    className="absolute left-1/2 top-1/2 z-10 size-12 -translate-x-1/2 -translate-y-1/2 animate-spin text-mint"
+                    className="pending-pulse absolute left-1/2 top-1/2 z-10 size-14 -translate-x-1/2 -translate-y-1/2 stroke-[1.25] text-mint"
                   />
                 )}
                 <div className="pointer-events-none absolute left-1/2 top-1/2 z-[2] size-[150px] -translate-x-1/2 -translate-y-1/2">

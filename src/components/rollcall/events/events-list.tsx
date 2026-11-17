@@ -64,14 +64,21 @@ export function EventsChrome({
 export function EventsGrid({
   events,
   query,
+  justAddedEventId,
+  removingEventIds,
+  onClearJustAdded,
   onCreate,
   onSelect,
 }: {
   events: EventSummary[];
   query: string;
+  justAddedEventId?: string | null;
+  removingEventIds?: string[];
+  onClearJustAdded?: () => void;
   onCreate: () => void;
   onSelect?: (eventId: string) => void;
 }) {
+  const removingSet = new Set(removingEventIds ?? []);
   const filteredEvents = events
     .toReversed()
     .filter((event) =>
@@ -103,8 +110,10 @@ export function EventsGrid({
               </p>
               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-tint">
                 <span
-                  className="block h-full rounded-full bg-primary"
-                  style={{ width: `${event.attendancePercentage}%` }}
+                  className="block h-full origin-left rounded-full bg-primary"
+                  style={{
+                    transform: `scaleX(${Math.min(1, Math.max(0, event.attendancePercentage / 100))})`,
+                  }}
                 />
               </div>
               <div className="mt-4 flex items-end justify-between border-t border-border pt-4">
@@ -129,6 +138,18 @@ export function EventsGrid({
               <article
                 key={event.id}
                 data-testid={`event-item-${event.id}`}
+                data-just-added={
+                  event.id === justAddedEventId ? "true" : undefined
+                }
+                data-removing={removingSet.has(event.id) ? "true" : undefined}
+                onAnimationEnd={(animEvent) => {
+                  if (
+                    animEvent.target === animEvent.currentTarget &&
+                    event.id === justAddedEventId
+                  ) {
+                    onClearJustAdded?.();
+                  }
+                }}
                 role="button"
                 tabIndex={0}
                 aria-label={`Select ${event.name}`}
@@ -142,7 +163,7 @@ export function EventsGrid({
                     onSelect(event.id);
                   }
                 }}
-                className="group cursor-pointer rounded-xl bg-card p-5 ring-1 ring-border transition-shadow hover:shadow-[0_10px_30px_rgba(27,37,40,.08)] hover:ring-tint-strong"
+                className="list-item-enter list-item-exit group cursor-pointer rounded-xl bg-card p-5 ring-1 ring-border transition-shadow hover:shadow-[0_10px_30px_rgba(27,37,40,.08)] hover:ring-tint-strong"
               >
                 {cardContent}
               </article>
@@ -155,8 +176,20 @@ export function EventsGrid({
               href={`/events/${event.id}/check-in`}
               prefetch={true}
               data-testid={`event-item-${event.id}`}
+              data-just-added={
+                event.id === justAddedEventId ? "true" : undefined
+              }
+              data-removing={removingSet.has(event.id) ? "true" : undefined}
+              onAnimationEnd={(animEvent) => {
+                if (
+                  animEvent.target === animEvent.currentTarget &&
+                  event.id === justAddedEventId
+                ) {
+                  onClearJustAdded?.();
+                }
+              }}
               aria-label={`Select ${event.name}`}
-              className="group block cursor-pointer rounded-xl bg-card p-5 ring-1 ring-border transition-shadow hover:shadow-[0_10px_30px_rgba(27,37,40,.08)] hover:ring-tint-strong"
+              className="list-item-enter list-item-exit group block cursor-pointer rounded-xl bg-card p-5 ring-1 ring-border transition-shadow hover:shadow-[0_10px_30px_rgba(27,37,40,.08)] hover:ring-tint-strong"
             >
               {cardContent}
             </Link>

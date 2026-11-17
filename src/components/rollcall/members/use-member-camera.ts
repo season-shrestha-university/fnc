@@ -210,6 +210,7 @@ export function useMemberCamera({
     facingMode,
     isCameraOpen,
     isStartingCamera,
+    isStreamReady: hasStream,
     hasStream,
     hasMultipleCameras,
     cameraError,
