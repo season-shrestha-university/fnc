@@ -6,10 +6,11 @@ loadEnvFile(".env.local");
 
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Auth specs share a single Supabase test account whose global signOut revokes other workers' sessions.
+  workers: 1,
   reporter: "html",
   use: {
     baseURL: "http://localhost:3000",
