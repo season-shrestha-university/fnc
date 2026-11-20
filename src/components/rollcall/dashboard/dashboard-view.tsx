@@ -31,9 +31,6 @@ export function DashboardHeader() {
   return (
     <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div>
-        <p className="text-[15px] font-bold text-muted-foreground">
-          RollCall overview
-        </p>
         <h1
           id="dashboard-heading"
           className="font-heading text-4xl font-extrabold tracking-[-.03em]"
